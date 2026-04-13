@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+
+{% block title %}My Deer - {{ property.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .deer-card { transition: transform 0.15s, box-shadow 0.15s; }
+    .deer-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+    .dark .deer-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .sighting-thumb { transition: transform 0.1s, border-color 0.1s; }
+    .sighting-thumb:hover { transform: scale(1.05); }
+    .confidence-high { color: #22c55e; }
+    .confidence-med { color: #f59e0b; }
+    .confidence-low { color: #ef4444; }
+    .badge-buck { background: #2563eb; color: #fff; }
+    .badge-doe { background: #ec4899; color: #fff; }
+    .badge-unknown { background: #64748b; color: #fff; }
+    .stat-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+</style>
+
+<!-- Breadcrumb -->
+<div class="mb-2">
+    <a href="/properties" class="text-sm text-teal-600 hover:underline">&larr; My Properties</a>
+    <span class="text-sm text-gray-400 mx-1">/</span>
+    <a href="/properties/{{ property.id }}/dashboard" class="text-sm text-teal-600 hover:underline">{{ property.name }}</a>
+</div>
+
+<!-- Header -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-700 dark:text-gray-100">My Deer</h1>
+        <p class="text-sm text-slate-500 dark:text-gray-400 mt-1">
+            Track individual deer across your cameras
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <div class="relative">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input id="deer-search" type="text" placeholder="Search by name..."
+                   class="pl-8 pr-3 py-1.5 text-xs w-48 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+        </div>
+        <select id="sex-filter"
+                class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+            <option value="">All</option>
+            <option value="buck">Bucks</option>
+            <option value="doe">Does</option>
+        </select>
+        <button onclick="openNewDeerModal()"
+                class="inline-flex items-center px-4 py-2 bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-600 border border-gray-600 transition">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Deer
+        </button>
+        <button onclick="runReID()"
+                id="run-reid-btn"
+                class="inline-flex items-center px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Scan Photos
+        </button>
+    </div>
+</div>
+
+<!-- Stats bar -->
+<div id="stats-bar" class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+        <div class="text-3xl font-extrabold text-teal-600" id="stat-total">--</div>
+        <div class="text-xs text-slate-500 dark:text-gray-400 mt-1">Individuals Tracked</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+        <div class="text-3xl font-extrabold text-teal-600" id="stat-bucks">--</div>
+        <div class="text-xs text-slate-500 dark:text-gray-400 mt-1">Bucks</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+        <div class="text-3xl font-extrabold text-teal-600" id="stat-sightings">--</div>
+        <div class="text-xs text-slate-500 dark:text-gray-400 mt-1">Total Sightings</div>
+    </div>
+</div>
+
+<!-- Deer grid -->
+<div id="deer-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="text-sm text-gray-400 col-span-full text-center py-12">
+        <svg class="mx-auto w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Click <strong>Scan Photos</strong> to identify individual deer in your trail cam photos.
+    </div>
+</div>
+
+<!-- Detail modal -->
+<div id="deer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
+        <button onclick="closeModal()" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl">&times;</button>
+
+        <!-- Profile header -->
+        <div class="relative">
+            <div class="h-48 bg-gray-200 dark:bg-gray-700 rounded-t-2xl overflow-hidden">
+                <img id="modal-hero" class="w-full h-full object-cover" alt="">
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
+                <h2 id="modal-name" class="text-2xl font-bold text-white"></h2>
+                <div class="flex items-center gap-2 mt-1">
+                    <span id="modal-id" class="text-xs text-gray-300 font-mono"></span>
+                    <span id="modal-sex-badge" class="stat-pill text-[10px]"></span>
+                    <span id="modal-age" class="text-xs text-gray-300"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5">
+            <!-- Editable name -->
+            <div class="flex items-center gap-3 mb-4">
+                <input id="modal-name-input" type="text" placeholder="Give this deer a name..."
+                       class="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                <button onclick="saveDeerName()" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Save</button>
+                <button onclick="openAddSightingFromModal()" class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 border border-gray-600 transition whitespace-nowrap">
+                    + Photo
+                </button>
+            </div>
+
+            <!-- Stats row -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div id="modal-sightings" class="text-xl font-bold text-slate-700 dark:text-gray-100">0</div>
+                    <div class="text-[10px] text-slate-500 dark:text-gray-400">Sightings</div>
+                </div>
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div id="modal-cameras" class="text-xl font-bold text-slate-700 dark:text-gray-100">0</div>
+                    <div class="text-[10px] text-slate-500 dark:text-gray-400">Cameras</div>
+                </div>
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div id="modal-days" class="text-xl font-bold text-slate-700 dark:text-gray-100">0</div>
+                    <div class="text-[10px] text-slate-500 dark:text-gray-400">Days Tracked</div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <h3 class="text-sm font-semibold text-slate-700 dark:text-gray-200 mb-3">Sighting Timeline</h3>
+            <div id="modal-timeline" class="space-y-2 max-h-64 overflow-y-auto">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- New Deer upload modal                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="new-deer-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+        <button onclick="closeNewDeerModal()" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl z-10">&times;</button>
+
+        <div class="p-6">
+            <h2 class="text-xl font-bold text-slate-700 dark:text-gray-100 mb-1">Add New Deer</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-5">Upload a trail cam photo and give this deer a name to start tracking.</p>
+
+            <!-- Drop zone -->
+            <div id="new-deer-dropzone"
+                 class="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-teal-500 transition mb-4"
+                 onclick="document.getElementById('new-deer-file').click()">
+                <div id="new-deer-preview" class="hidden mb-3">
+                    <img id="new-deer-preview-img" class="mx-auto max-h-48 rounded-lg object-contain" alt="Preview">
+                </div>
+                <div id="new-deer-placeholder">
+                    <svg class="mx-auto w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Drop a photo here or <span class="text-teal-600 font-medium">browse</span></p>
+                    <p class="text-[10px] text-gray-400 mt-1">JPG, PNG, or WebP</p>
+                </div>
+                <input id="new-deer-file" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewNewDeerPhoto(this)">
+            </div>
+
+            <!-- Form fields -->
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Name *</label>
+                    <input id="new-deer-name" type="text" placeholder='e.g. "Split G2" or "Creek Buck"'
+                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Sex</label>
+                        <select id="new-deer-sex"
+                                class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                            <option value="buck">Buck</option>
+                            <option value="doe">Doe</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Species</label>
+                        <select id="new-deer-species"
+                                class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                            <option value="white_tailed_deer">White-tailed Deer</option>
+                            <option value="axis_deer">Axis Deer</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Notes <span class="font-normal text-gray-400">(optional)</span></label>
+                    <input id="new-deer-notes" type="text" placeholder="Distinguishing features, location, etc."
+                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                </div>
+            </div>
+
+            <button id="new-deer-submit" onclick="submitNewDeer()"
+                    class="mt-5 w-full py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition disabled:opacity-50">
+                Add Deer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Add Sighting upload modal                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="add-sighting-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+        <button onclick="closeAddSightingModal()" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl z-10">&times;</button>
+
+        <div class="p-6">
+            <h2 class="text-xl font-bold text-slate-700 dark:text-gray-100 mb-1">Add Sighting</h2>
+            <p id="add-sighting-subtitle" class="text-xs text-gray-500 dark:text-gray-400 mb-5">Upload another photo of this deer.</p>
+
+            <!-- Drop zone -->
+            <div id="sighting-dropzone"
+                 class="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-teal-500 transition mb-4"
+                 onclick="document.getElementById('sighting-file').click()">
+                <div id="sighting-preview" class="hidden mb-3">
+                    <img id="sighting-preview-img" class="mx-auto max-h-48 rounded-lg object-contain" alt="Preview">
+                </div>
+                <div id="sighting-placeholder">
+                    <svg class="mx-auto w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Drop a photo here or <span class="text-teal-600 font-medium">browse</span></p>
+                    <p class="text-[10px] text-gray-400 mt-1">JPG, PNG, or WebP</p>
+                </div>
+                <input id="sighting-file" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewSightingPhoto(this)">
+            </div>
+
+            <button id="sighting-submit" onclick="submitSighting()"
+                    class="w-full py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition disabled:opacity-50">
+                Upload Sighting
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const PID = {{ property.id }};
+let _allDeer = [];
+let _currentDeer = null;
+let _sightingTargetId = null; /* deer ID for "add sighting" flow */
+
+// ── Load deer list ──
+function loadDeer() {
+    const sex = document.getElementById('sex-filter').value;
+    const url = `/api/properties/${PID}/deer` + (sex ? `?sex=${sex}` : '');
+
+    fetch(url).then(r => r.json()).then(data => {
+        _allDeer = data.deer;
+        renderDeer(data.deer);
+        updateStats(data.deer);
+    });
+}
+
+function updateStats(deer) {
+    document.getElementById('stat-total').textContent = deer.length;
+    document.getElementById('stat-bucks').textContent = deer.filter(d => d.sex === 'buck').length;
+    document.getElementById('stat-sightings').textContent = deer.reduce((sum, d) => sum + d.sighting_count, 0);
+}
+
+function renderDeer(deer) {
+    const search = document.getElementById('deer-search').value.toLowerCase();
+    const filtered = deer.filter(d => {
+        const name = (d.display_name || d.individual_id).toLowerCase();
+        return !search || name.includes(search);
+    });
+
+    const grid = document.getElementById('deer-grid');
+
+    if (!filtered.length) {
+        grid.innerHTML = `<div class="text-sm text-gray-400 col-span-full text-center py-12">
+            ${deer.length ? 'No deer match your search' : 'No deer tracked yet. Click <strong>Scan Photos</strong> to get started.'}
+        </div>`;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(d => {
+        const name = d.display_name || d.individual_id;
+        const sexClass = d.sex === 'buck' ? 'badge-buck' : d.sex === 'doe' ? 'badge-doe' : 'badge-unknown';
+        const sexLabel = d.sex ? d.sex.charAt(0).toUpperCase() + d.sex.slice(1) : 'Unknown';
+        const lastSeen = d.last_seen ? new Date(d.last_seen).toLocaleDateString() : '--';
+        const confClass = d.sighting_count >= 5 ? 'confidence-high' : d.sighting_count >= 2 ? 'confidence-med' : 'confidence-low';
+
+        return `
+        <div class="deer-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden cursor-pointer"
+             onclick="openDeer('${d.individual_id}')">
+            <div class="h-40 bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                ${d.profile_photo_url
+                    ? `<img src="${d.profile_photo_url}" class="w-full h-full object-cover" alt="${name}">`
+                    : `<div class="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                       </div>`
+                }
+            </div>
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-slate-700 dark:text-gray-100 truncate">${name}</h3>
+                    <span class="stat-pill ${sexClass} text-[10px]">${sexLabel}</span>
+                </div>
+                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
+                    <span class="${confClass} font-semibold">${d.sighting_count} sighting${d.sighting_count !== 1 ? 's' : ''}</span>
+                    <span>Last: ${lastSeen}</span>
+                </div>
+                ${d.is_confirmed ? '<div class="mt-2 text-[10px] text-green-500 font-medium">Confirmed</div>' : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Run re-ID pipeline ──
+function runReID() {
+    const btn = document.getElementById('run-reid-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg> Scanning...`;
+
+    fetch(`/api/properties/${PID}/deer/run`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg> Scan Photos`;
+            loadDeer();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = 'Scan Photos';
+            console.error('Re-ID error:', err);
+        });
+}
+
+// ── Open deer detail ──
+function openDeer(deerId) {
+    fetch(`/api/properties/${PID}/deer/${deerId}`)
+        .then(r => r.json())
+        .then(data => {
+            _currentDeer = data;
+            const name = data.display_name || data.individual_id;
+
+            document.getElementById('modal-hero').src = data.profile_photo_url || '';
+            document.getElementById('modal-name').textContent = name;
+            document.getElementById('modal-id').textContent = data.individual_id;
+            document.getElementById('modal-name-input').value = data.display_name || '';
+
+            const sexBadge = document.getElementById('modal-sex-badge');
+            sexBadge.textContent = data.sex ? data.sex.charAt(0).toUpperCase() + data.sex.slice(1) : 'Unknown';
+            sexBadge.className = 'stat-pill text-[10px] ' +
+                (data.sex === 'buck' ? 'badge-buck' : data.sex === 'doe' ? 'badge-doe' : 'badge-unknown');
+
+            document.getElementById('modal-age').textContent = data.age_class || '';
+            document.getElementById('modal-sightings').textContent = data.sighting_count;
+            document.getElementById('modal-cameras').textContent = Object.keys(data.camera_summary || {}).length;
+
+            // Days tracked
+            if (data.first_seen && data.last_seen) {
+                const days = Math.ceil((new Date(data.last_seen) - new Date(data.first_seen)) / 86400000);
+                document.getElementById('modal-days').textContent = Math.max(1, days);
+            }
+
+            // Sighting timeline
+            const timeline = document.getElementById('modal-timeline');
+            timeline.innerHTML = (data.sightings || []).map(s => {
+                const date = s.timestamp ? new Date(s.timestamp).toLocaleString() : '--';
+                const confPct = s.confidence ? Math.round(s.confidence * 100) : '--';
+                const confClass = s.confidence >= 0.8 ? 'confidence-high' : s.confidence >= 0.6 ? 'confidence-med' : 'confidence-low';
+                return `
+                <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    <div class="w-16 h-12 rounded overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+                        ${s.photo_url ? `<img src="${s.photo_url}" class="w-full h-full object-cover">` : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-medium text-slate-700 dark:text-gray-200">${s.camera_id || '--'}</div>
+                        <div class="text-[10px] text-slate-500 dark:text-gray-400">${date}</div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <div class="text-xs font-semibold ${confClass}">${confPct}%</div>
+                        ${s.is_confirmed ? '<div class="text-[9px] text-green-500">Confirmed</div>' : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('deer-modal').classList.remove('hidden');
+        });
+}
+
+function closeModal() {
+    document.getElementById('deer-modal').classList.add('hidden');
+    _currentDeer = null;
+}
+
+function saveDeerName() {
+    if (!_currentDeer) return;
+    const name = document.getElementById('modal-name-input').value.trim();
+    if (!name) return;
+
+    fetch(`/api/properties/${PID}/deer/${_currentDeer.individual_id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ display_name: name }),
+    }).then(r => r.json()).then(() => {
+        document.getElementById('modal-name').textContent = name;
+        loadDeer();  // Refresh grid
+    });
+}
+
+// Close modal on backdrop click
+document.getElementById('deer-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// Escape key closes modal
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+});
+
+// Filter handlers
+document.getElementById('sex-filter').addEventListener('change', loadDeer);
+document.getElementById('deer-search').addEventListener('input', () => renderDeer(_allDeer));
+
+// ═══════════════════════════════════════════════════════════════════
+// New Deer modal
+// ═══════════════════════════════════════════════════════════════════
+
+function openNewDeerModal() {
+    // Reset form
+    document.getElementById('new-deer-file').value = '';
+    document.getElementById('new-deer-name').value = '';
+    document.getElementById('new-deer-sex').value = 'buck';
+    document.getElementById('new-deer-species').value = 'white_tailed_deer';
+    document.getElementById('new-deer-notes').value = '';
+    document.getElementById('new-deer-preview').classList.add('hidden');
+    document.getElementById('new-deer-placeholder').classList.remove('hidden');
+    document.getElementById('new-deer-submit').disabled = false;
+    document.getElementById('new-deer-submit').textContent = 'Add Deer';
+    document.getElementById('new-deer-modal').classList.remove('hidden');
+}
+
+function closeNewDeerModal() {
+    document.getElementById('new-deer-modal').classList.add('hidden');
+}
+
+function previewNewDeerPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('new-deer-preview-img').src = e.target.result;
+        document.getElementById('new-deer-preview').classList.remove('hidden');
+        document.getElementById('new-deer-placeholder').classList.add('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function submitNewDeer() {
+    const fileInput = document.getElementById('new-deer-file');
+    const name = document.getElementById('new-deer-name').value.trim();
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Please select a photo.');
+        return;
+    }
+    if (!name) {
+        alert('Please give this deer a name.');
+        return;
+    }
+
+    const btn = document.getElementById('new-deer-submit');
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    const form = new FormData();
+    form.append('photo', fileInput.files[0]);
+    form.append('display_name', name);
+    form.append('sex', document.getElementById('new-deer-sex').value);
+    form.append('species_key', document.getElementById('new-deer-species').value);
+    form.append('notes', document.getElementById('new-deer-notes').value);
+
+    fetch(`/api/properties/${PID}/deer/new`, { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                btn.disabled = false;
+                btn.textContent = 'Add Deer';
+                return;
+            }
+            closeNewDeerModal();
+            loadDeer();
+        })
+        .catch(err => {
+            console.error('Upload error:', err);
+            btn.disabled = false;
+            btn.textContent = 'Add Deer';
+        });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Add Sighting modal
+// ═══════════════════════════════════════════════════════════════════
+
+function openAddSightingFromModal() {
+    if (!_currentDeer) return;
+    _sightingTargetId = _currentDeer.individual_id;
+    const name = _currentDeer.display_name || _currentDeer.individual_id;
+    document.getElementById('add-sighting-subtitle').textContent = `Upload another photo of ${name}.`;
+
+    // Reset
+    document.getElementById('sighting-file').value = '';
+    document.getElementById('sighting-preview').classList.add('hidden');
+    document.getElementById('sighting-placeholder').classList.remove('hidden');
+    document.getElementById('sighting-submit').disabled = false;
+    document.getElementById('sighting-submit').textContent = 'Upload Sighting';
+    document.getElementById('add-sighting-modal').classList.remove('hidden');
+}
+
+function closeAddSightingModal() {
+    document.getElementById('add-sighting-modal').classList.add('hidden');
+    _sightingTargetId = null;
+}
+
+function previewSightingPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('sighting-preview-img').src = e.target.result;
+        document.getElementById('sighting-preview').classList.remove('hidden');
+        document.getElementById('sighting-placeholder').classList.add('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function submitSighting() {
+    const fileInput = document.getElementById('sighting-file');
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Please select a photo.');
+        return;
+    }
+    if (!_sightingTargetId) return;
+
+    const btn = document.getElementById('sighting-submit');
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    const form = new FormData();
+    form.append('photo', fileInput.files[0]);
+
+    fetch(`/api/properties/${PID}/deer/${_sightingTargetId}/sighting`, {
+        method: 'POST', body: form,
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                btn.disabled = false;
+                btn.textContent = 'Upload Sighting';
+                return;
+            }
+            closeAddSightingModal();
+            // Refresh the detail modal to show new sighting
+            openDeer(_sightingTargetId);
+            loadDeer();
+        })
+        .catch(err => {
+            console.error('Upload error:', err);
+            btn.disabled = false;
+            btn.textContent = 'Upload Sighting';
+        });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Drag-and-drop handlers
+// ═══════════════════════════════════════════════════════════════════
+
+function _setupDropzone(zoneId, fileInputId, previewFn) {
+    const zone = document.getElementById(zoneId);
+    if (!zone) return;
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        zone.addEventListener(evt, e => {
+            e.preventDefault();
+            zone.classList.add('border-teal-500', 'bg-teal-500/5');
+        });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        zone.addEventListener(evt, e => {
+            e.preventDefault();
+            zone.classList.remove('border-teal-500', 'bg-teal-500/5');
+        });
+    });
+    zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            const input = document.getElementById(fileInputId);
+            input.files = files;
+            previewFn(input);
+        }
+    });
+}
+
+_setupDropzone('new-deer-dropzone', 'new-deer-file', previewNewDeerPhoto);
+_setupDropzone('sighting-dropzone', 'sighting-file', previewSightingPhoto);
+
+// Close upload modals on backdrop click
+document.getElementById('new-deer-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeNewDeerModal();
+});
+document.getElementById('add-sighting-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddSightingModal();
+});
+
+// Initial load
+loadDeer();
+</script>
+{% endblock %}

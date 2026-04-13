@@ -1,0 +1,29 @@
+name: strecker
+region: nyc
+services:
+  - name: strecker-web
+    dockerfile_path: Dockerfile
+    github:
+      repo: MizuguchiJAkira/strecker
+      branch: main
+      deploy_on_push: true
+    instance_size_slug: professional-xs
+    instance_count: 1
+    http_port: 5000
+    envs:
+      - key: FLASK_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SITE
+        scope: RUN_TIME
+        value: strecker
+      - key: FLASK_DEBUG
+        scope: RUN_TIME
+        value: "0"
+      - key: DEMO_MODE
+        scope: RUN_TIME
+        value: "1"
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 30

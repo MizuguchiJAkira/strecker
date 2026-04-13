@@ -1,0 +1,1445 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ property.name }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+    .species-card { transition: transform 0.15s, box-shadow 0.15s; }
+    .species-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .pattern-badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .pattern-nocturnal { background: #2A2724; color: #F0EDE8; }
+    .pattern-diurnal { background: #fef3c7; color: #92400e; }
+    .pattern-crepuscular { background: #ede9fe; color: #5b21b6; }
+    .stat-value { font-size: 28px; font-weight: 800; color: #1e293b; line-height: 1; }
+    .dark .stat-value { color: #F0EDE8; }
+    .stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .dark .stat-label { color: #A39E95; }
+    .section-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+    .dark .section-title { color: #F0EDE8; }
+    #dash-map { height: 400px; border-radius: 12px; }
+    .cam-marker-map {
+        background: #0D7377; color: #fff; border-radius: 50%;
+        width: 32px; height: 32px; display: flex; align-items: center;
+        justify-content: center; font-size: 10px; font-weight: 700;
+        border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    }
+    /* Filmstrip scrollbar */
+    #filmstrip::-webkit-scrollbar { height: 6px; }
+    #filmstrip::-webkit-scrollbar-track { background: transparent; }
+    #filmstrip::-webkit-scrollbar-thumb { background: #635C54; border-radius: 3px; }
+    #filmstrip::-webkit-scrollbar-thumb:hover { background: #82796F; }
+    .cam-marker-map.large { width: 40px; height: 40px; font-size: 11px; }
+    .heatstrip { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
+    .heatstrip div { flex: 1; }
+    .share-btn {
+        background: none; border: none; cursor: pointer; padding: 4px 6px;
+        color: #94a3b8; transition: color 0.15s;
+    }
+    .share-btn:hover { color: #0D7377; }
+    .species-card.dragging { opacity: 0.4; }
+    .species-card.drag-over { border-top: 3px solid #0D7377; }
+    .drag-handle { cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    .yoy-card { transition: transform 0.15s, box-shadow 0.15s; }
+    .yoy-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .trend-up { color: #16a34a; }
+    .trend-down { color: #dc2626; }
+    .trend-flat { color: #64748b; }
+    .yoy-bar { height: 8px; border-radius: 4px; transition: width 0.3s ease; }
+</style>
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <a href="/properties" class="text-sm text-teal-600 hover:text-teal-700">&larr; My Properties</a>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ property.name }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            {% if property.county %}{{ property.county }}, {% endif %}{{ property.state or 'TX' }}
+            {% if property.acreage %} &middot; {{ property.acreage|int }} acres{% endif %}
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <select id="season-select" class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+            <option value="">Loading seasons...</option>
+        </select>
+        <a href="/properties/{{ property.id }}/deer"
+           class="px-4 py-2 border border-teal-600 text-teal-600 dark:text-teal-400 dark:border-teal-500 text-sm font-medium rounded-lg hover:bg-teal-50 dark:hover:bg-gray-700 transition">
+            My Deer
+        </a>
+        <a href="/properties/{{ property.id }}/upload"
+           class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+            Upload Photos
+        </a>
+    </div>
+</div>
+
+<!-- KPI Bar -->
+<div id="kpi-bar" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+        <div class="stat-value" id="kpi-species">--</div>
+        <div class="stat-label">Species Detected</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+        <div class="stat-value" id="kpi-events">--</div>
+        <div class="stat-label">Independent Events</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+        <div class="stat-value" id="kpi-photos">--</div>
+        <div class="stat-label">Photos Processed</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+        <div class="stat-value" id="kpi-cameras">--</div>
+        <div class="stat-label">Cameras Active</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+        <div class="stat-value" id="kpi-days">--</div>
+        <div class="stat-label">Days Monitored</div>
+    </div>
+</div>
+
+<!-- Coverage Score -->
+<div id="coverage-section" class="mb-8 hidden">
+    <h2 class="section-title">Camera Network Score</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <div class="flex flex-col md:flex-row items-center gap-8">
+            <!-- Gauge + Grade -->
+            <div class="flex items-center gap-6">
+                <div style="width:140px;height:140px;position:relative">
+                    <canvas id="coverage-gauge"></canvas>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+                        <div class="text-2xl font-extrabold text-slate-800 dark:text-gray-100" id="coverage-score-value">--</div>
+                        <div class="text-[10px] text-slate-400 dark:text-gray-400">out of 100</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-5xl font-black" id="coverage-grade" style="color:#0D7377">--</div>
+                    <div class="text-xs text-slate-400 dark:text-gray-400 mt-1">Network Grade</div>
+                </div>
+            </div>
+
+            <!-- Sub-score bars -->
+            <div class="flex-1 w-full space-y-3">
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-600 dark:text-gray-300 font-medium">Density</span>
+                        <span class="text-slate-500 dark:text-gray-400" id="sub-density-val">--</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div id="sub-density-bar" class="h-2.5 rounded-full transition-all" style="width:0%;background:#0D7377"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-600 dark:text-gray-300 font-medium">Diversity</span>
+                        <span class="text-slate-500 dark:text-gray-400" id="sub-diversity-val">--</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div id="sub-diversity-bar" class="h-2.5 rounded-full transition-all" style="width:0%;background:#3b82f6"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-600 dark:text-gray-300 font-medium">Distribution</span>
+                        <span class="text-slate-500 dark:text-gray-400" id="sub-distribution-val">--</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div id="sub-distribution-bar" class="h-2.5 rounded-full transition-all" style="width:0%;background:#f59e0b"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-600 dark:text-gray-300 font-medium">Temporal</span>
+                        <span class="text-slate-500 dark:text-gray-400" id="sub-temporal-val">--</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div id="sub-temporal-bar" class="h-2.5 rounded-full transition-all" style="width:0%;background:#8b5cf6"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div id="coverage-recs" class="mt-5 hidden">
+            <div class="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-2">Recommendations</div>
+            <ul id="coverage-recs-list" class="space-y-1 text-sm text-slate-600 dark:text-gray-300"></ul>
+        </div>
+    </div>
+</div>
+
+<!-- Species Cards -->
+<div class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="section-title mb-0">Species Inventory</h2>
+        <div class="flex items-center gap-3">
+            <!-- Sort dropdown -->
+            <div class="relative">
+                <button id="species-sort-btn" onclick="toggleSortDropdown()"
+                        class="flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-medium text-slate-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+                    </svg>
+                    <span id="sort-label">Most Events</span>
+                </button>
+                <div id="sort-dropdown" class="hidden absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg z-30 py-1">
+                    <button onclick="sortSpecies('events')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">Most Events</button>
+                    <button onclick="sortSpecies('photos')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">Most Photos</button>
+                    <button onclick="sortSpecies('cameras')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">Most Cameras</button>
+                    <button onclick="sortSpecies('confidence')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">Highest Confidence</button>
+                    <button onclick="sortSpecies('name')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">A &rarr; Z</button>
+                    <button onclick="sortSpecies('custom')" class="sort-opt w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200">Custom Order</button>
+                </div>
+            </div>
+            <!-- Expand / Collapse All -->
+            <button onclick="toggleAllCards()" id="toggle-all-btn"
+                    class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-medium text-slate-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition">
+                <svg id="toggle-all-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+                <span id="toggle-all-label">Collapse All</span>
+            </button>
+        </div>
+    </div>
+    <div id="species-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="text-sm text-gray-400 col-span-full text-center py-8">Loading species data...</div>
+    </div>
+</div>
+
+<!-- Photo Gallery — Carousel Primary -->
+<div class="mb-8" id="photo-gallery-section">
+    <!-- Header row: title + search + filters -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+        <h2 class="section-title mb-0">Photo Gallery</h2>
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Search bar -->
+            <div class="relative">
+                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input id="photo-search" type="text" placeholder="Search species, camera, date..."
+                       class="pl-8 pr-3 py-1.5 text-xs w-56 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+            </div>
+            <select id="photo-species-filter"
+                    class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                <option value="">All Species</option>
+            </select>
+            <select id="photo-camera-filter"
+                    class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500 outline-none">
+                <option value="">All Cameras</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main carousel viewer -->
+    <div class="bg-black rounded-xl overflow-hidden relative" id="carousel-container">
+        <!-- Loading state -->
+        <div id="carousel-loading" class="flex items-center justify-center h-96 text-gray-400 text-sm">Loading photos...</div>
+
+        <!-- Main image area -->
+        <div id="carousel-viewer" class="hidden relative">
+            <div class="flex items-center justify-center bg-black" style="height: 480px;">
+                <img id="carousel-img" class="max-h-full max-w-full object-contain" alt="Trail cam photo">
+            </div>
+            <!-- Nav arrows -->
+            <button onclick="carouselNav(-1)" id="carousel-prev"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white text-2xl flex items-center justify-center hover:bg-black/70 transition backdrop-blur-sm">
+                &#8249;
+            </button>
+            <button onclick="carouselNav(1)" id="carousel-next"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white text-2xl flex items-center justify-center hover:bg-black/70 transition backdrop-blur-sm">
+                &#8250;
+            </button>
+            <!-- Info overlay -->
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
+                <div class="flex items-center justify-between text-white">
+                    <div>
+                        <span id="carousel-species" class="font-bold text-lg"></span>
+                        <span id="carousel-camera" class="text-sm text-gray-300 ml-3"></span>
+                    </div>
+                    <div class="text-right">
+                        <span id="carousel-date" class="text-sm"></span>
+                        <span id="carousel-time" class="text-sm text-gray-300 ml-2"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Counter + pagination -->
+    <div class="flex items-center justify-between mt-3 px-1">
+        <span id="carousel-counter" class="text-xs text-slate-500 dark:text-gray-400"></span>
+        <div id="photo-pagination" class="flex items-center gap-3 hidden">
+            <button onclick="loadPhotos(window._photoPage - 1)" id="photo-prev"
+                    class="px-3 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-lg text-slate-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 transition">
+                &larr; Prev
+            </button>
+            <span id="photo-page-info" class="text-xs text-slate-500 dark:text-gray-400"></span>
+            <button onclick="loadPhotos(window._photoPage + 1)" id="photo-next"
+                    class="px-3 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-lg text-slate-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 transition">
+                Next &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- Filmstrip thumbnails -->
+    <div class="mt-3 relative">
+        <div id="filmstrip" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin" style="scroll-behavior: smooth;">
+            <!-- Thumbnails injected by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Buck:Doe Ratio (conditional) -->
+<div id="buck-doe-section" class="hidden mb-8">
+    <h2 class="section-title">White-tailed Deer — Buck:Doe Ratio</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex items-center gap-8">
+        <div style="width:180px;height:180px;">
+            <canvas id="buck-doe-chart"></canvas>
+        </div>
+        <div>
+            <div class="flex items-center gap-6 mb-3">
+                <div>
+                    <span class="text-3xl font-extrabold text-slate-800 dark:text-white" id="buck-count">0</span>
+                    <span class="text-sm text-slate-500 dark:text-gray-400 ml-1">Bucks</span>
+                </div>
+                <div class="text-2xl text-slate-300 dark:text-gray-500">:</div>
+                <div>
+                    <span class="text-3xl font-extrabold text-slate-800 dark:text-white" id="doe-count">0</span>
+                    <span class="text-sm text-slate-500 dark:text-gray-400 ml-1">Does</span>
+                </div>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-gray-300 font-medium" id="buck-doe-ratio">Ratio: --</p>
+            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">Antler classification active May&ndash;Nov only</p>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Patterns -->
+<div class="mb-8">
+    <h2 class="section-title">Daily Activity Patterns</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <!-- Species filter dropdown -->
+        <div class="relative inline-block mb-4">
+            <button id="species-filter-btn" onclick="toggleSpeciesDropdown()"
+                    class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-slate-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                </svg>
+                <span id="species-filter-label">All Species</span>
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+            <div id="species-dropdown" class="hidden absolute left-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 py-2 max-h-72 overflow-y-auto">
+                <!-- populated by JS -->
+            </div>
+        </div>
+        <div style="position:relative">
+            <canvas id="activity-chart" height="100"></canvas>
+            <div id="activity-tooltip" class="hidden" style="position:absolute; left:0; pointer-events:none; z-index:20;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Camera Leaderboard -->
+<div class="mb-8">
+    <h2 class="section-title">Camera Leaderboard</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <canvas id="leaderboard-chart" height="80"></canvas>
+    </div>
+</div>
+
+<!-- Year-over-Year Trends (hidden until 2+ seasons with data) -->
+<div id="yoy-section" class="hidden mb-8">
+    <h2 class="section-title">Year-over-Year Trends</h2>
+    <div id="yoy-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    </div>
+</div>
+
+<!-- Share Card Modal -->
+<div id="share-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-lg w-full mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-800">Share Detection Card</h3>
+            <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+        <div id="share-modal-body" class="text-center">
+            <div id="share-loading" class="py-8 text-slate-400">Generating share card...</div>
+            <img id="share-card-img" class="hidden w-full rounded-lg shadow mb-4" alt="Share card">
+            <div id="share-link-row" class="hidden flex items-center gap-2 mt-4">
+                <input id="share-link-input" type="text" readonly
+                       class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-700">
+                <button onclick="copyShareLink()"
+                        class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+                    Copy Link
+                </button>
+            </div>
+            <p id="share-copy-msg" class="hidden text-sm text-green-600 mt-2">Link copied!</p>
+        </div>
+    </div>
+</div>
+
+<!-- Map View -->
+<div class="mb-8">
+    <h2 class="section-title">Camera Network Map</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        <div id="dash-map"></div>
+    </div>
+</div>
+
+<!-- Empty state -->
+<div id="empty-state" class="hidden text-center py-16">
+    <svg class="mx-auto w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+        <circle cx="12" cy="13" r="3"/>
+    </svg>
+    <h2 class="text-xl font-semibold text-gray-700 mb-2">No data yet</h2>
+    <p class="text-gray-500 mb-4">Upload your trail camera photos to see your dashboard.</p>
+    <a href="/properties/{{ property.id }}/upload"
+       class="inline-flex items-center px-5 py-2.5 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition">
+        Upload Photos
+    </a>
+</div>
+
+<script>
+// Register custom tooltip positioner — places bubble below the chart area
+Chart.Tooltip.positioners.belowChart = function(elements, eventPosition) {
+    const chart = this.chart;
+    return {
+        x: eventPosition.x,
+        y: chart.chartArea.bottom + 12
+    };
+};
+
+(function() {
+    const PID = {{ property.id }};
+    const COLORS = {
+        navy: '#1e293b', teal: '#0D7377', blue: '#3b82f6',
+        amber: '#f59e0b', red: '#ef4444', green: '#22c55e',
+        purple: '#8b5cf6', pink: '#ec4899', cyan: '#06b6d4',
+        orange: '#f97316', lime: '#84cc16', indigo: '#6366f1'
+    };
+    const PALETTE = [COLORS.teal, '#94a3b8', COLORS.blue, COLORS.amber, COLORS.red,
+                     COLORS.green, COLORS.purple, COLORS.pink, COLORS.cyan,
+                     COLORS.orange, COLORS.lime, COLORS.indigo];
+
+    function isDark() { return document.documentElement.classList.contains('dark'); }
+    function chartGridColor() { return isDark() ? '#3D3A35' : '#f1f5f9'; }
+    function chartTickColor() { return isDark() ? '#A39E95' : '#64748b'; }
+
+    let currentSeasonId = null;
+    let dashMap = null;
+
+    // ── Season loader ──
+    async function loadSeasons() {
+        const res = await fetch(`/api/properties/${PID}/seasons`);
+        const seasons = await res.json();
+        const sel = document.getElementById('season-select');
+        sel.innerHTML = '';
+        if (!seasons.length) {
+            sel.innerHTML = '<option value="">No seasons</option>';
+            showEmpty();
+            return;
+        }
+        // URL param override
+        const params = new URLSearchParams(window.location.search);
+        const urlSeason = params.get('season');
+
+        seasons.forEach((s, i) => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            if (urlSeason && String(s.id) === urlSeason) opt.selected = true;
+            else if (!urlSeason && i === 0) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        currentSeasonId = sel.value;
+        loadDashboard();
+    }
+
+    document.getElementById('season-select').addEventListener('change', function() {
+        currentSeasonId = this.value;
+        loadDashboard();
+    });
+
+    // ── Main loader ──
+    async function loadDashboard() {
+        if (!currentSeasonId) { showEmpty(); return; }
+        const qs = `?season_id=${currentSeasonId}`;
+        const [summary, activity, cameras, mapData, coverage] = await Promise.all([
+            fetch(`/api/properties/${PID}/dashboard/summary${qs}`).then(r => r.json()),
+            fetch(`/api/properties/${PID}/dashboard/activity${qs}`).then(r => r.json()),
+            fetch(`/api/properties/${PID}/dashboard/cameras${qs}`).then(r => r.json()),
+            fetch(`/api/properties/${PID}/dashboard/map-data${qs}`).then(r => r.json()),
+            fetch(`/api/properties/${PID}/dashboard/coverage${qs}`).then(r => r.json()),
+        ]);
+
+        if (!summary.species || !summary.species.length) { showEmpty(); return; }
+        hideEmpty();
+
+        renderKPIs(summary);
+        renderCoverage(coverage);
+        renderSpeciesCards(summary.species, activity);
+        renderBuckDoe(summary.species);
+        renderActivityChart(activity);
+        renderLeaderboard(cameras);
+        loadYoY();
+        renderMap(mapData);
+        // Populate camera filter for photo gallery
+        const camSel = document.getElementById('photo-camera-filter');
+        if (camSel.options.length <= 1 && cameras.length) {
+            cameras.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.camera_label;
+                opt.textContent = c.camera_label + (c.name ? ` (${c.name})` : '');
+                camSel.appendChild(opt);
+            });
+        }
+        // Photos loaded independently via DOMContentLoaded
+    }
+
+    function showEmpty() {
+        document.getElementById('empty-state').classList.remove('hidden');
+        ['kpi-bar','species-grid','buck-doe-section','coverage-section'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+    }
+    function hideEmpty() {
+        document.getElementById('empty-state').classList.add('hidden');
+        ['kpi-bar','species-grid'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+    }
+
+    // ── KPIs ──
+    function renderKPIs(summary) {
+        const stats = summary.stats || summary;
+        document.getElementById('kpi-species').textContent = stats.species_count || 0;
+        document.getElementById('kpi-events').textContent = (stats.total_events || 0).toLocaleString();
+        document.getElementById('kpi-photos').textContent = (stats.total_photos || 0).toLocaleString();
+        document.getElementById('kpi-cameras').textContent = stats.camera_count || 0;
+        document.getElementById('kpi-days').textContent = stats.days_monitored || 0;
+    }
+
+    // ── Coverage Score ──
+    function renderCoverage(data) {
+        const section = document.getElementById('coverage-section');
+        if (!data || data.error) { section.classList.add('hidden'); return; }
+        section.classList.remove('hidden');
+
+        document.getElementById('coverage-score-value').textContent = Math.round(data.overall_score);
+        document.getElementById('coverage-grade').textContent = data.grade;
+
+        const gradeEl = document.getElementById('coverage-grade');
+        if (data.overall_score >= 80) gradeEl.style.color = '#22c55e';
+        else if (data.overall_score >= 60) gradeEl.style.color = '#0D7377';
+        else if (data.overall_score >= 50) gradeEl.style.color = '#f59e0b';
+        else gradeEl.style.color = '#ef4444';
+
+        const ctx = document.getElementById('coverage-gauge').getContext('2d');
+        if (window._coverageChart) window._coverageChart.destroy();
+        const score = data.overall_score;
+        window._coverageChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [score, 100 - score],
+                    backgroundColor: [
+                        score >= 80 ? '#22c55e' : score >= 60 ? '#0D7377' : score >= 50 ? '#f59e0b' : '#ef4444',
+                        isDark() ? '#3D3A35' : '#f1f5f9'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '75%',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { animateRotate: true, duration: 800 }
+            }
+        });
+
+        const subs = [
+            { key: 'density', val: data.density_score },
+            { key: 'diversity', val: data.diversity_score },
+            { key: 'distribution', val: data.distribution_score },
+            { key: 'temporal', val: data.temporal_score },
+        ];
+        subs.forEach(s => {
+            document.getElementById(`sub-${s.key}-val`).textContent = Math.round(s.val);
+            document.getElementById(`sub-${s.key}-bar`).style.width = `${Math.min(100, s.val)}%`;
+        });
+
+        const recsDiv = document.getElementById('coverage-recs');
+        const recsList = document.getElementById('coverage-recs-list');
+        if (data.recommendations && data.recommendations.length) {
+            recsDiv.classList.remove('hidden');
+            recsList.innerHTML = data.recommendations
+                .map(r => `<li class="flex items-start gap-2"><span class="text-amber-500 mt-0.5">&#9679;</span><span>${r}</span></li>`)
+                .join('');
+        } else {
+            recsDiv.classList.add('hidden');
+        }
+    }
+
+    // ── Species Cards ──
+    // ── Species card state ──
+    window._speciesData = [];
+    window._activityDataCache = [];
+    window._expandedCards = new Set();
+    window._currentSort = 'events';
+    window._customOrder = [];  // species_key array for custom drag order
+
+    function renderSpeciesCards(species, activityData) {
+        window._speciesData = species;
+        window._activityDataCache = activityData;
+        // Default all expanded
+        if (window._expandedCards.size === 0) {
+            species.forEach(sp => window._expandedCards.add(sp.species_key));
+        }
+        _sortAndRender();
+    }
+
+    function _getSortedSpecies() {
+        const species = [...window._speciesData];
+        const sort = window._currentSort;
+        if (sort === 'events') species.sort((a, b) => b.total_events - a.total_events);
+        else if (sort === 'photos') species.sort((a, b) => b.total_photos - a.total_photos);
+        else if (sort === 'cameras') species.sort((a, b) => b.camera_count - a.camera_count);
+        else if (sort === 'confidence') species.sort((a, b) => b.avg_confidence - a.avg_confidence);
+        else if (sort === 'name') species.sort((a, b) => a.common_name.localeCompare(b.common_name));
+        else if (sort === 'custom') {
+            const order = window._customOrder;
+            species.sort((a, b) => {
+                const ai = order.indexOf(a.species_key);
+                const bi = order.indexOf(b.species_key);
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+            });
+        }
+        return species;
+    }
+
+    window._sortAndRender = _sortAndRender;
+    function _sortAndRender() {
+        const sorted = _getSortedSpecies();
+        const grid = document.getElementById('species-grid');
+        grid.innerHTML = '';
+        const activityData = window._activityDataCache;
+        const isCustom = window._currentSort === 'custom';
+
+        sorted.forEach((sp, i) => {
+            const origIdx = window._speciesData.indexOf(sp);
+            const color = PALETTE[origIdx % PALETTE.length];
+            const act = activityData.find(a => a.species_key === sp.species_key);
+            const pattern = act ? act.pattern : '';
+            const patternClass = pattern.toLowerCase();
+            const expanded = window._expandedCards.has(sp.species_key);
+
+            // Mini heat strip
+            let heatHtml = '';
+            if (act && act.hourly) {
+                const max = Math.max(...act.hourly, 1);
+                heatHtml = '<div class="heatstrip mt-3">';
+                act.hourly.forEach((v, h) => {
+                    const opacity = (v / max * 0.8 + 0.05).toFixed(2);
+                    const bg = h < 5 || h >= 21 ? '#1e293b' : (h < 7 || h >= 17 ? '#6366f1' : '#f59e0b');
+                    heatHtml += `<div style="background:${bg};opacity:${opacity}" title="Hour ${h}: ${v} events"></div>`;
+                });
+                heatHtml += '</div>';
+                heatHtml += '<div class="flex justify-between text-[10px] text-slate-400 mt-0.5"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>12am</span></div>';
+            }
+
+            const card = document.createElement('div');
+            card.className = 'species-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden';
+            card.dataset.species = sp.species_key;
+
+            if (isCustom) {
+                card.draggable = true;
+                card.addEventListener('dragstart', _onDragStart);
+                card.addEventListener('dragend', _onDragEnd);
+                card.addEventListener('dragover', _onDragOver);
+                card.addEventListener('dragenter', _onDragEnter);
+                card.addEventListener('dragleave', _onDragLeave);
+                card.addEventListener('drop', _onDrop);
+            }
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between px-5 py-3 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+                     onclick="toggleCard('${sp.species_key}')">
+                    <div class="flex items-center gap-3 min-w-0">
+                        ${isCustom ? `
+                        <div class="drag-handle flex items-center mr-1 text-slate-400 dark:text-gray-500"
+                             onmousedown="event.stopPropagation()" title="Drag to reorder">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="10" r="1.5"/><circle cx="15" cy="10" r="1.5"/><circle cx="9" cy="15" r="1.5"/><circle cx="15" cy="15" r="1.5"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg>
+                        </div>` : ''}
+                        <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${color}"></div>
+                        <h3 class="font-bold text-slate-800 dark:text-gray-100 truncate">${sp.common_name}</h3>
+                        <span class="text-xs text-slate-400 flex-shrink-0">${sp.total_events.toLocaleString()} events</span>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                        <span class="pattern-badge pattern-${patternClass}">${pattern}</span>
+                        <svg class="w-4 h-4 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="card-body ${expanded ? '' : 'hidden'} px-5 pb-4">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <div class="text-lg font-extrabold" style="color:${color}">${sp.total_events.toLocaleString()}</div>
+                            <div class="text-[11px] text-slate-400">Events</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-extrabold text-slate-700 dark:text-gray-200">${sp.total_photos.toLocaleString()}</div>
+                            <div class="text-[11px] text-slate-400">Photos</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-extrabold text-slate-700 dark:text-gray-200">${sp.camera_count}</div>
+                            <div class="text-[11px] text-slate-400">Cameras</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3 text-xs text-slate-500">
+                        <span>Conf: ${(sp.avg_confidence * 100).toFixed(0)}%</span>
+                        ${sp.peak_hour !== null ? `<span>Peak: ${sp.peak_hour}:00</span>` : ''}
+                        <button class="share-btn ml-auto" onclick="event.stopPropagation(); openShareModal('${sp.species_key}')" title="Share">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </button>
+                    </div>
+                    ${heatHtml}
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // ── Drag & drop for custom order ──
+    window._draggedSpecies = null;
+
+    function _onDragStart(e) {
+        window._draggedSpecies = this.dataset.species;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.species);
+    }
+    function _onDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.species-card').forEach(c => c.classList.remove('drag-over'));
+    }
+    function _onDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+    function _onDragEnter(e) {
+        e.preventDefault();
+        if (this.dataset.species !== window._draggedSpecies) {
+            this.classList.add('drag-over');
+        }
+    }
+    function _onDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+    function _onDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        const from = window._draggedSpecies;
+        const to = this.dataset.species;
+        if (!from || from === to) return;
+        const order = window._customOrder;
+        const fromIdx = order.indexOf(from);
+        const toIdx = order.indexOf(to);
+        if (fromIdx === -1 || toIdx === -1) return;
+        // Remove from old position, insert at new
+        order.splice(fromIdx, 1);
+        order.splice(toIdx, 0, from);
+        window._sortAndRender();
+    }
+
+    // ── Buck:Doe ──
+    function renderBuckDoe(species) {
+        const deer = species.find(s => s.species_key === 'white_tailed_deer');
+        if (!deer || (!deer.buck_count && !deer.doe_count)) {
+            document.getElementById('buck-doe-section').classList.add('hidden');
+            return;
+        }
+        document.getElementById('buck-doe-section').classList.remove('hidden');
+        const bucks = deer.buck_count || 0;
+        const does = deer.doe_count || 0;
+        document.getElementById('buck-count').textContent = bucks;
+        document.getElementById('doe-count').textContent = does;
+
+        const ratio = does > 0 ? (bucks / does).toFixed(2) : '--';
+        document.getElementById('buck-doe-ratio').textContent = `Ratio: 1 buck : ${does > 0 ? (does / bucks).toFixed(1) : '--'} does`;
+
+        const ctx = document.getElementById('buck-doe-chart').getContext('2d');
+        if (window._buckDoeChart) window._buckDoeChart.destroy();
+        window._buckDoeChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Bucks', 'Does'],
+                datasets: [{
+                    data: [bucks, does],
+                    backgroundColor: [isDark() ? '#94a3b8' : COLORS.navy, COLORS.teal],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '65%',
+                plugins: { legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: true,
+            }
+        });
+    }
+
+    // ── Activity Chart ──
+    // Store full activity data and visible species for filtering
+    window._activityData = [];
+    window._visibleSpecies = new Set();
+
+    function renderActivityChart(activityData) {
+        window._activityData = activityData;
+        // Default: show top 6
+        if (window._visibleSpecies.size === 0) {
+            activityData.slice(0, 6).forEach(sp => window._visibleSpecies.add(sp.species_key));
+        }
+        _buildSpeciesDropdown(activityData);
+        _drawActivityChart();
+    }
+
+    function _buildSpeciesDropdown(activityData) {
+        const dd = document.getElementById('species-dropdown');
+        dd.innerHTML = '';
+        // Select-all row
+        const allRow = document.createElement('label');
+        allRow.className = 'flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm';
+        const allCb = document.createElement('input');
+        allCb.type = 'checkbox';
+        allCb.className = 'rounded border-gray-300 text-teal-600 focus:ring-teal-500';
+        allCb.checked = window._visibleSpecies.size === activityData.length;
+        allCb.addEventListener('change', () => {
+            if (allCb.checked) {
+                activityData.forEach(sp => window._visibleSpecies.add(sp.species_key));
+            } else {
+                window._visibleSpecies.clear();
+            }
+            _buildSpeciesDropdown(activityData);
+            _drawActivityChart();
+        });
+        allRow.appendChild(allCb);
+        const allSpan = document.createElement('span');
+        allSpan.className = 'font-medium text-slate-700';
+        allSpan.textContent = 'Select All';
+        allRow.appendChild(allSpan);
+        dd.appendChild(allRow);
+        // Divider
+        const hr = document.createElement('div');
+        hr.className = 'border-t border-gray-100 my-1';
+        dd.appendChild(hr);
+        // Per-species rows
+        activityData.forEach((sp, i) => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-3 px-4 py-1.5 hover:bg-gray-50 cursor-pointer text-sm';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'rounded border-gray-300 text-teal-600 focus:ring-teal-500';
+            cb.checked = window._visibleSpecies.has(sp.species_key);
+            cb.addEventListener('change', () => {
+                if (cb.checked) window._visibleSpecies.add(sp.species_key);
+                else window._visibleSpecies.delete(sp.species_key);
+                _updateFilterLabel();
+                _drawActivityChart();
+            });
+            label.appendChild(cb);
+            const swatch = document.createElement('span');
+            swatch.className = 'w-3 h-3 rounded-full flex-shrink-0';
+            swatch.style.backgroundColor = PALETTE[i % PALETTE.length];
+            label.appendChild(swatch);
+            const name = document.createElement('span');
+            name.className = 'text-slate-600';
+            name.textContent = sp.species_key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            label.appendChild(name);
+            dd.appendChild(label);
+        });
+        _updateFilterLabel();
+    }
+
+    function _updateFilterLabel() {
+        const total = window._activityData.length;
+        const n = window._visibleSpecies.size;
+        const lbl = document.getElementById('species-filter-label');
+        if (n === 0) lbl.textContent = 'No Species';
+        else if (n === total) lbl.textContent = 'All Species';
+        else lbl.textContent = `${n} of ${total} Species`;
+    }
+
+    function _drawActivityChart() {
+        const ctx = document.getElementById('activity-chart').getContext('2d');
+        if (window._actChart) window._actChart.destroy();
+
+        const hours = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+        let colorIdx = 0;
+        const datasets = window._activityData.map((sp, origIdx) => {
+            const visible = window._visibleSpecies.has(sp.species_key);
+            return {
+                label: sp.species_key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                data: sp.hourly,
+                borderColor: PALETTE[origIdx % PALETTE.length],
+                backgroundColor: PALETTE[origIdx % PALETTE.length] + '20',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false,
+                pointRadius: 2,
+                hidden: !visible,
+            };
+        });
+
+        window._actChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: hours, datasets },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: false,
+                        external: function(context) {
+                            const tooltipEl = document.getElementById('activity-tooltip');
+                            const model = context.tooltip;
+                            if (model.opacity === 0) { tooltipEl.classList.add('hidden'); return; }
+                            const canvas = context.chart.canvas;
+                            // Position bubble below the canvas, horizontally aligned to hover point
+                            tooltipEl.style.top = canvas.offsetHeight + 8 + 'px';
+                            tooltipEl.style.left = model.caretX + 'px';
+                            tooltipEl.style.transform = 'translateX(-50%)';
+                            // Build bubble HTML
+                            let html = '<div style="background:#2A2724;color:#F0EDE8;border-radius:8px;padding:10px 14px;font-size:13px;white-space:nowrap;position:relative;border:1px solid #3D3A35;">';
+                            // Caret arrow
+                            html += '<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #2A2724;"></div>';
+                            html += '<div style="font-weight:600;margin-bottom:4px;">' + (model.title[0] || '') + '</div>';
+                            (model.body || []).forEach((bodyItem, i) => {
+                                const ds = context.chart.data.datasets[model.dataPoints[i].datasetIndex];
+                                if (ds.hidden) return;
+                                const color = model.labelColors[i].borderColor;
+                                const text = bodyItem.lines[0] || '';
+                                html += '<div style="display:flex;align-items:center;gap:6px;line-height:1.6;">'
+                                    + '<span style="background:' + color + ';width:8px;height:8px;border-radius:50%;display:inline-block;"></span>'
+                                    + text + '</div>';
+                            });
+                            html += '</div>';
+                            tooltipEl.innerHTML = html;
+                            tooltipEl.classList.remove('hidden');
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: chartTickColor(), font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Events', color: chartTickColor(), font: { size: 11 } },
+                        ticks: { color: chartTickColor(), font: { size: 10 } },
+                        grid: { color: chartGridColor() }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Camera Leaderboard ──
+    function renderLeaderboard(cameras) {
+        const ctx = document.getElementById('leaderboard-chart').getContext('2d');
+        if (window._lbChart) window._lbChart.destroy();
+
+        const sorted = cameras.slice(0, 14);
+        window._lbChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sorted.map(c => `${c.camera_label} ${c.name ? '(' + c.name + ')' : ''}`),
+                datasets: [{
+                    label: 'Events',
+                    data: sorted.map(c => c.total_events),
+                    backgroundColor: sorted.map((_, i) => PALETTE[i % PALETTE.length] + 'cc'),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Independent Events', color: chartTickColor(), font: { size: 11 } },
+                        grid: { color: chartGridColor() },
+                        ticks: { color: chartTickColor(), font: { size: 10 } }
+                    },
+                    y: {
+                        ticks: { color: chartTickColor(), font: { size: 10 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Map ──
+    function renderMap(mapData) {
+        if (!dashMap) {
+            // Set a sensible default center so the map initializes properly
+            dashMap = L.map('dash-map', { center: [30.5, -99.72], zoom: 13 });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+            }).addTo(dashMap);
+            // Ensure map sizes correctly even when below the fold
+            setTimeout(() => dashMap.invalidateSize(), 200);
+        }
+
+        // Clear existing layers (except tile layer)
+        dashMap.eachLayer(l => { if (l instanceof L.GeoJSON || l instanceof L.Marker) dashMap.removeLayer(l); });
+
+        // Property boundary
+        if (mapData.boundary_geojson) {
+            try {
+                const geo = typeof mapData.boundary_geojson === 'string'
+                    ? JSON.parse(mapData.boundary_geojson) : mapData.boundary_geojson;
+                const layer = L.geoJSON(geo, {
+                    style: { color: '#ffffff', weight: 2, fillOpacity: 0.08 }
+                }).addTo(dashMap);
+                dashMap.fitBounds(layer.getBounds().pad(0.15));
+            } catch(e) {}
+        }
+
+        // If no boundary, fit to camera positions
+        if (!mapData.boundary_geojson && mapData.cameras.length > 0) {
+            const lats = mapData.cameras.filter(c => c.lat && c.lon).map(c => c.lat);
+            const lons = mapData.cameras.filter(c => c.lat && c.lon).map(c => c.lon);
+            if (lats.length > 0) {
+                const bounds = L.latLngBounds(
+                    [Math.min(...lats) - 0.01, Math.min(...lons) - 0.01],
+                    [Math.max(...lats) + 0.01, Math.max(...lons) + 0.01]
+                );
+                dashMap.fitBounds(bounds.pad(0.3));
+            }
+        }
+
+        // Camera markers with density sizing
+        const maxEvents = Math.max(...mapData.cameras.map(c => c.total_events), 1);
+        mapData.cameras.forEach(cam => {
+            if (!cam.lat || !cam.lon) return;
+            const size = cam.total_events > 0
+                ? Math.max(28, Math.min(44, 28 + (cam.total_events / maxEvents) * 16))
+                : 28;
+            const sizeClass = size > 36 ? 'large' : '';
+
+            const icon = L.divIcon({
+                className: '',
+                html: `<div class="cam-marker-map ${sizeClass}" style="width:${size}px;height:${size}px">${(cam.label || cam.camera_label || '').replace('CAM-','')}</div>`,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
+            });
+
+            const speciesList = (cam.species || [])
+                .sort((a, b) => b.events - a.events)
+                .slice(0, 5)
+                .map(s => `<div class="flex justify-between text-xs"><span>${s.key.replace(/_/g,' ')}</span><span class="font-semibold">${s.events}</span></div>`)
+                .join('');
+
+            const popup = `
+                <div style="min-width:160px">
+                    <div class="font-bold text-sm mb-1">${cam.label || cam.camera_label || ''}</div>
+                    <div class="text-xs text-gray-500 mb-2">${cam.name || ''} &middot; ${cam.placement_context || ''}</div>
+                    <div class="font-semibold text-xs text-gray-600 mb-1">${cam.total_events} events</div>
+                    ${speciesList}
+                </div>
+            `;
+
+            L.marker([cam.lat, cam.lon], { icon })
+                .bindPopup(popup)
+                .addTo(dashMap);
+        });
+    }
+
+    // ── Year-over-Year ──
+    async function loadYoY() {
+        try {
+            const res = await fetch(`/api/properties/${PID}/dashboard/yoy`);
+            if (!res.ok) {
+                document.getElementById('yoy-section').classList.add('hidden');
+                return;
+            }
+            const data = await res.json();
+            if (!data.species || !data.seasons || data.seasons.length < 2) {
+                document.getElementById('yoy-section').classList.add('hidden');
+                return;
+            }
+            renderYoY(data);
+        } catch(e) {
+            document.getElementById('yoy-section').classList.add('hidden');
+        }
+    }
+
+    function renderYoY(data) {
+        const section = document.getElementById('yoy-section');
+        const grid = document.getElementById('yoy-grid');
+        section.classList.remove('hidden');
+        grid.innerHTML = '';
+
+        const seasonNames = {};
+        data.seasons.forEach(s => { seasonNames[s.id] = s.name; });
+
+        data.species.forEach(sp => {
+            const card = document.createElement('div');
+            card.className = 'yoy-card bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5';
+
+            const trend = sp.trend_pct;
+            let trendClass, trendIcon;
+            if (trend > 0) {
+                trendClass = 'trend-up';
+                trendIcon = '&#9650;';
+            } else if (trend < 0) {
+                trendClass = 'trend-down';
+                trendIcon = '&#9660;';
+            } else {
+                trendClass = 'trend-flat';
+                trendIcon = '&#9644;';
+            }
+
+            // Build season comparison bars
+            const maxEvents = Math.max(...sp.seasons.map(s => s.events), 1);
+            let barsHtml = '';
+            sp.seasons.forEach(ss => {
+                const pct = Math.max((ss.events / maxEvents) * 100, 2);
+                const name = seasonNames[ss.season_id] || `Season ${ss.season_id}`;
+                barsHtml += `
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="text-[11px] text-slate-400 w-24 truncate">${name}</span>
+                        <div class="flex-1 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="yoy-bar bg-teal-500" style="width:${pct}%"></div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-slate-600 w-12 text-right">${ss.events.toLocaleString()}</span>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="font-bold text-slate-800 text-sm">${sp.common_name}</h3>
+                    <span class="${trendClass} font-bold text-sm">${trendIcon} ${Math.abs(trend).toFixed(1)}%</span>
+                </div>
+                <div>${barsHtml}</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // ── Init ──
+    loadSeasons();
+})();
+
+// ── Share Modal (global scope) ──
+function openShareModal(speciesKey) {
+    const modal = document.getElementById('share-modal');
+    const loading = document.getElementById('share-loading');
+    const img = document.getElementById('share-card-img');
+    const linkRow = document.getElementById('share-link-row');
+    const copyMsg = document.getElementById('share-copy-msg');
+
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    loading.textContent = 'Generating share card...';
+    img.classList.add('hidden');
+    linkRow.classList.add('hidden');
+    copyMsg.classList.add('hidden');
+
+    const pid = {{ property.id }};
+    const seasonId = document.getElementById('season-select').value;
+
+    fetch('/api/share-cards', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            species_key: speciesKey,
+            property_id: pid,
+            season_id: parseInt(seasonId),
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        loading.classList.add('hidden');
+
+        if (data.image_url) {
+            img.src = data.image_url;
+            img.classList.remove('hidden');
+        }
+
+        if (data.share_url) {
+            const fullUrl = window.location.origin + data.share_url;
+            document.getElementById('share-link-input').value = fullUrl;
+            linkRow.classList.remove('hidden');
+        }
+    })
+    .catch(err => {
+        loading.textContent = 'Failed to generate share card.';
+    });
+}
+
+function toggleSpeciesDropdown() {
+    const dd = document.getElementById('species-dropdown');
+    dd.classList.toggle('hidden');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('species-dropdown');
+    const btn = document.getElementById('species-filter-btn');
+    if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+        dd.classList.add('hidden');
+    }
+});
+
+// ── Species card controls ──
+function toggleCard(speciesKey) {
+    if (window._expandedCards.has(speciesKey)) {
+        window._expandedCards.delete(speciesKey);
+    } else {
+        window._expandedCards.add(speciesKey);
+    }
+    // Animate just the one card instead of full re-render
+    const card = document.querySelector(`[data-species="${speciesKey}"]`);
+    if (card) {
+        const body = card.querySelector('.card-body');
+        const chevron = card.querySelector('svg:last-child');
+        if (body) body.classList.toggle('hidden');
+        if (chevron) chevron.classList.toggle('rotate-180');
+    }
+}
+
+function toggleAllCards() {
+    const anyExpanded = window._expandedCards.size > 0;
+    if (anyExpanded) {
+        window._expandedCards.clear();
+        document.getElementById('toggle-all-label').textContent = 'Expand All';
+        document.getElementById('toggle-all-icon').style.transform = '';
+    } else {
+        window._speciesData.forEach(sp => window._expandedCards.add(sp.species_key));
+        document.getElementById('toggle-all-label').textContent = 'Collapse All';
+        document.getElementById('toggle-all-icon').style.transform = 'rotate(180deg)';
+    }
+    window._sortAndRender();
+}
+
+function toggleSortDropdown() {
+    document.getElementById('sort-dropdown').classList.toggle('hidden');
+}
+
+function sortSpecies(mode) {
+    const labels = {events:'Most Events', photos:'Most Photos', cameras:'Most Cameras',
+                    confidence:'Highest Confidence', name:'A → Z', custom:'Custom Order'};
+    window._currentSort = mode;
+    document.getElementById('sort-label').textContent = labels[mode] || mode;
+    document.getElementById('sort-dropdown').classList.add('hidden');
+    // Initialize custom order from current sorted list
+    if (mode === 'custom' && window._customOrder.length === 0) {
+        window._customOrder = window._speciesData.map(sp => sp.species_key);
+    }
+    window._sortAndRender();
+}
+
+// Close sort dropdown on outside click
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('sort-dropdown');
+    const btn = document.getElementById('species-sort-btn');
+    if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+        dd.classList.add('hidden');
+    }
+});
+
+// ── Photo Gallery — Inline Carousel + Filmstrip ──
+window._photoPage = 1;
+window._photoList = [];
+window._carouselIdx = 0;
+window._searchDebounce = null;
+
+function loadPhotos(page) {
+    if (page < 1) return;
+    window._photoPage = page;
+    const pid = {{ property.id }};
+    const species = document.getElementById('photo-species-filter').value;
+    const camera = document.getElementById('photo-camera-filter').value;
+    const q = document.getElementById('photo-search').value.trim();
+    const url = `/api/properties/${pid}/dashboard/photos?page=${page}&per_page=40`
+        + (species ? `&species=${encodeURIComponent(species)}` : '')
+        + (camera ? `&camera=${encodeURIComponent(camera)}` : '')
+        + (q ? `&q=${encodeURIComponent(q)}` : '');
+
+    fetch(url).then(r => r.json()).then(data => {
+        window._photoList = data.photos;
+        window._carouselIdx = 0;
+
+        const loading = document.getElementById('carousel-loading');
+        const viewer = document.getElementById('carousel-viewer');
+        const filmstrip = document.getElementById('filmstrip');
+
+        if (!data.photos.length) {
+            loading.textContent = 'No photos found';
+            loading.classList.remove('hidden');
+            viewer.classList.add('hidden');
+            filmstrip.innerHTML = '';
+            document.getElementById('photo-pagination').classList.add('hidden');
+            document.getElementById('carousel-counter').textContent = '';
+            return;
+        }
+
+        loading.classList.add('hidden');
+        viewer.classList.remove('hidden');
+
+        // Build filmstrip
+        filmstrip.innerHTML = '';
+        data.photos.forEach((photo, i) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'flex-shrink-0 cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-150';
+            thumb.style.width = '100px';
+            thumb.style.height = '75px';
+            thumb.dataset.idx = i;
+            thumb.id = 'filmstrip-' + i;
+            thumb.onclick = () => selectPhoto(i);
+            thumb.innerHTML = `
+                <img src="${photo.url}" alt="${photo.common_name}"
+                     class="w-full h-full object-cover"
+                     loading="lazy">
+            `;
+            filmstrip.appendChild(thumb);
+        });
+
+        // Update carousel to first photo
+        _updateCarousel();
+
+        // Pagination
+        const pag = document.getElementById('photo-pagination');
+        if (data.pages > 1) {
+            pag.classList.remove('hidden');
+            document.getElementById('photo-page-info').textContent =
+                `Page ${data.page} of ${data.pages}`;
+            document.getElementById('photo-prev').disabled = data.page <= 1;
+            document.getElementById('photo-next').disabled = data.page >= data.pages;
+        } else {
+            pag.classList.add('hidden');
+        }
+
+        // Populate species filter on first load
+        if (page === 1 && data.species_list) {
+            const sel = document.getElementById('photo-species-filter');
+            const current = sel.value;
+            if (sel.options.length <= 1) {
+                data.species_list.forEach(sp => {
+                    const opt = document.createElement('option');
+                    opt.value = sp;
+                    const names = {white_tailed_deer:'White-tailed Deer',feral_hog:'Feral Hog',
+                        turkey:'Wild Turkey',raccoon:'Raccoon',armadillo:'Armadillo',
+                        coyote:'Coyote',bobcat:'Bobcat',axis_deer:'Axis Deer',
+                        opossum:'Opossum',red_fox:'Red Fox',gray_fox:'Gray Fox',
+                        cottontail_rabbit:'Cottontail'};
+                    opt.textContent = names[sp] || sp.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+                    sel.appendChild(opt);
+                });
+            }
+            sel.value = current;
+        }
+    });
+}
+
+function selectPhoto(idx) {
+    if (idx < 0 || idx >= window._photoList.length) return;
+    window._carouselIdx = idx;
+    _updateCarousel();
+}
+
+function carouselNav(dir) {
+    const newIdx = window._carouselIdx + dir;
+    if (newIdx < 0 || newIdx >= window._photoList.length) return;
+    window._carouselIdx = newIdx;
+    _updateCarousel();
+}
+
+function _updateCarousel() {
+    const photo = window._photoList[window._carouselIdx];
+    if (!photo) return;
+    const img = document.getElementById('carousel-img');
+    img.src = photo.url;
+    document.getElementById('carousel-species').textContent = photo.common_name;
+    document.getElementById('carousel-camera').textContent = photo.camera;
+    document.getElementById('carousel-date').textContent = photo.date;
+    document.getElementById('carousel-time').textContent = photo.time;
+
+    const total = window._photoList.length;
+    const globalIdx = (window._photoPage - 1) * 40 + window._carouselIdx + 1;
+    document.getElementById('carousel-counter').textContent =
+        `Photo ${globalIdx} of ${total > 40 ? total + '+' : total}`;
+
+    // Nav arrow visibility
+    document.getElementById('carousel-prev').style.display = window._carouselIdx > 0 ? '' : 'none';
+    document.getElementById('carousel-next').style.display =
+        window._carouselIdx < window._photoList.length - 1 ? '' : 'none';
+
+    // Highlight active filmstrip thumb
+    document.querySelectorAll('#filmstrip > div').forEach((el, i) => {
+        if (i === window._carouselIdx) {
+            el.className = el.className.replace(/border-(transparent|teal-500)/g, '') + ' border-teal-500';
+            el.style.opacity = '1';
+            // Scroll into view
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+            el.className = el.className.replace(/border-(transparent|teal-500)/g, '') + ' border-transparent';
+            el.style.opacity = '0.6';
+        }
+    });
+}
+
+// Keyboard nav (when gallery section is visible)
+document.addEventListener('keydown', function(e) {
+    // Only handle if photo gallery is in viewport
+    const section = document.getElementById('photo-gallery-section');
+    if (!section) return;
+    const rect = section.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+
+    if (e.key === 'ArrowLeft') { e.preventDefault(); carouselNav(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); carouselNav(1); }
+});
+
+// Filter & search handlers
+document.getElementById('photo-species-filter').addEventListener('change', () => loadPhotos(1));
+document.getElementById('photo-camera-filter').addEventListener('change', () => loadPhotos(1));
+document.getElementById('photo-search').addEventListener('input', function() {
+    clearTimeout(window._searchDebounce);
+    window._searchDebounce = setTimeout(() => loadPhotos(1), 300);
+});
+
+// Load photos immediately
+loadPhotos(1);
+
+function closeShareModal() {
+    document.getElementById('share-modal').classList.add('hidden');
+}
+
+function copyShareLink() {
+    const input = document.getElementById('share-link-input');
+    input.select();
+    document.execCommand('copy');
+    const msg = document.getElementById('share-copy-msg');
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 2000);
+}
+</script>
+{% endblock %}

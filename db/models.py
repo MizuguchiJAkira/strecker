@@ -1,0 +1,375 @@
+"""SQLAlchemy models for Basal Informatics hunter-facing web app.
+
+Phase 5 data infrastructure — persistent storage layer.
+SQLite for development, swap to PostGIS later.
+"""
+
+import uuid
+from datetime import datetime, date
+
+from flask_login import UserMixin
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
+
+db = SQLAlchemy()
+
+
+# ---------------------------------------------------------------------------
+# User
+# ---------------------------------------------------------------------------
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(120))
+    is_owner = db.Column(db.Boolean, default=False)  # Basal Informatics admin
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    properties = db.relationship("Property", backref="owner", lazy="dynamic")
+    uploads = db.relationship("Upload", backref="uploader", lazy="dynamic")
+    share_cards = db.relationship("ShareCard", backref="creator", lazy="dynamic")
+
+    def set_password(self, pw: str) -> None:
+        self.password_hash = generate_password_hash(pw)
+
+    def check_password(self, pw: str) -> bool:
+        return check_password_hash(self.password_hash, pw)
+
+    def __repr__(self):
+        return f"<User {self.email}>"
+
+
+# ---------------------------------------------------------------------------
+# Property
+# ---------------------------------------------------------------------------
+
+class Property(db.Model):
+    __tablename__ = "properties"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    county = db.Column(db.String(100))
+    state = db.Column(db.String(2))
+    acreage = db.Column(db.Float)
+    # GeoJSON as string for SQLite; swap to PostGIS Geometry later
+    boundary_geojson = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    cameras = db.relationship("Camera", backref="property", lazy="dynamic")
+    seasons = db.relationship("Season", backref="property", lazy="dynamic")
+    uploads = db.relationship("Upload", backref="property", lazy="dynamic")
+    coverage_scores = db.relationship(
+        "CoverageScore", backref="property", lazy="dynamic"
+    )
+    share_cards = db.relationship("ShareCard", backref="property", lazy="dynamic")
+
+    def __repr__(self):
+        return f"<Property {self.name}>"
+
+
+# ---------------------------------------------------------------------------
+# Camera
+# ---------------------------------------------------------------------------
+
+class Camera(db.Model):
+    __tablename__ = "cameras"
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    camera_label = db.Column(db.String(50))  # e.g. "CAM-F01"
+    name = db.Column(db.String(120))  # friendly name e.g. "South Feeder"
+    lat = db.Column(db.Float)
+    lon = db.Column(db.Float)
+    placement_context = db.Column(
+        db.String(30)
+    )  # feeder/trail/food_plot/water/random/other
+    camera_model = db.Column(db.String(100))
+    installed_date = db.Column(db.Date)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    detection_summaries = db.relationship(
+        "DetectionSummary", backref="camera", lazy="dynamic"
+    )
+
+    def __repr__(self):
+        return f"<Camera {self.camera_label}>"
+
+
+# ---------------------------------------------------------------------------
+# Upload
+# ---------------------------------------------------------------------------
+
+class Upload(db.Model):
+    __tablename__ = "uploads"
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    season_id = db.Column(db.Integer, db.ForeignKey("seasons.id"), nullable=True)
+    status = db.Column(
+        db.String(20), default="pending"
+    )  # pending/processing/complete/error
+    photo_count = db.Column(db.Integer)
+    error_message = db.Column(db.Text)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f"<Upload {self.id} status={self.status}>"
+
+
+# ---------------------------------------------------------------------------
+# Season
+# ---------------------------------------------------------------------------
+
+class Season(db.Model):
+    __tablename__ = "seasons"
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    name = db.Column(db.String(100))  # e.g. "Spring 2025"
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    detection_summaries = db.relationship(
+        "DetectionSummary", backref="season", lazy="dynamic"
+    )
+    uploads = db.relationship("Upload", backref="season", lazy="dynamic")
+    coverage_scores = db.relationship(
+        "CoverageScore", backref="season", lazy="dynamic"
+    )
+    share_cards = db.relationship("ShareCard", backref="season", lazy="dynamic")
+
+    def __repr__(self):
+        return f"<Season {self.name}>"
+
+
+# ---------------------------------------------------------------------------
+# DetectionSummary
+# ---------------------------------------------------------------------------
+
+class DetectionSummary(db.Model):
+    __tablename__ = "detection_summaries"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "season_id", "camera_id", "species_key",
+            name="uq_detection_summary_season_camera_species",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(
+        db.Integer, db.ForeignKey("seasons.id"), nullable=False
+    )
+    camera_id = db.Column(
+        db.Integer, db.ForeignKey("cameras.id"), nullable=False
+    )
+    species_key = db.Column(db.String(80), nullable=False)
+    total_photos = db.Column(db.Integer)
+    independent_events = db.Column(db.Integer)
+    avg_confidence = db.Column(db.Float)
+    first_seen = db.Column(db.DateTime)
+    last_seen = db.Column(db.DateTime)
+    buck_count = db.Column(db.Integer)
+    doe_count = db.Column(db.Integer)
+    peak_hour = db.Column(db.Integer)  # 0-23
+    # JSON string of 24 hourly counts
+    hourly_distribution = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<DetectionSummary {self.species_key} cam={self.camera_id}>"
+
+
+# ---------------------------------------------------------------------------
+# CoverageScore
+# ---------------------------------------------------------------------------
+
+class CoverageScore(db.Model):
+    __tablename__ = "coverage_scores"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "property_id", "season_id",
+            name="uq_coverage_score_property_season",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    season_id = db.Column(
+        db.Integer, db.ForeignKey("seasons.id"), nullable=False
+    )
+    overall_score = db.Column(db.Float)  # 0-100
+    density_score = db.Column(db.Float)
+    diversity_score = db.Column(db.Float)
+    distribution_score = db.Column(db.Float)
+    temporal_score = db.Column(db.Float)
+    grade = db.Column(db.String(2))  # A through F
+    recommendations = db.Column(db.Text)  # JSON array
+    calculated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<CoverageScore property={self.property_id} grade={self.grade}>"
+
+
+# ---------------------------------------------------------------------------
+# ShareCard
+# ---------------------------------------------------------------------------
+
+class ShareCard(db.Model):
+    __tablename__ = "share_cards"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    species_key = db.Column(db.String(80))
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    season_id = db.Column(
+        db.Integer, db.ForeignKey("seasons.id"), nullable=False
+    )
+    card_image_path = db.Column(db.String(500))
+    share_token = db.Column(
+        db.String(64), unique=True, default=lambda: uuid.uuid4().hex
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f"<ShareCard {self.share_token[:8]}>"
+
+
+# ---------------------------------------------------------------------------
+# DeerIndividual — re-ID tracked deer
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# ProcessingJob — persisted upload/processing jobs
+# ---------------------------------------------------------------------------
+
+class ProcessingJob(db.Model):
+    """Tracks upload processing jobs across server restarts."""
+    __tablename__ = "processing_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.String(8), unique=True, nullable=False, index=True)
+    property_name = db.Column(db.String(200))
+    state = db.Column(db.String(2))
+    status = db.Column(db.String(20), default="queued")  # queued/processing/classifying/reporting/complete/error
+    error_message = db.Column(db.Text)
+    n_photos = db.Column(db.String(20))
+    n_species = db.Column(db.Integer)
+    n_events = db.Column(db.String(20))
+    report_path = db.Column(db.String(500))
+    appendix_path = db.Column(db.String(500))
+    species_json = db.Column(db.Text)  # JSON array of species stats
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        import json
+        d = {
+            "job_id": self.job_id,
+            "property_name": self.property_name,
+            "status": self.status,
+            "error_message": self.error_message,
+            "n_photos": self.n_photos,
+            "n_species": self.n_species,
+            "n_events": self.n_events,
+            "report_path": self.report_path,
+            "appendix_path": self.appendix_path,
+            "species": json.loads(self.species_json) if self.species_json else [],
+            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+        return d
+
+    def __repr__(self):
+        return f"<ProcessingJob {self.job_id} status={self.status}>"
+
+
+class DeerIndividual(db.Model):
+    """A recognized individual deer tracked via re-identification."""
+    __tablename__ = "deer_individuals"
+
+    id = db.Column(db.Integer, primary_key=True)
+    individual_id = db.Column(db.String(20), unique=True, nullable=False)  # DEER-a3f8c2
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False
+    )
+    species_key = db.Column(db.String(80), nullable=False)
+    display_name = db.Column(db.String(120))  # User-assigned, e.g. "Split G2"
+    sex = db.Column(db.String(10))  # buck / doe / unknown
+    age_class = db.Column(db.String(20))  # spike, 2.5yr, 3.5yr, 4.5yr+, unknown
+    first_seen = db.Column(db.DateTime)
+    last_seen = db.Column(db.DateTime)
+    sighting_count = db.Column(db.Integer, default=0)
+    profile_photo_url = db.Column(db.String(500))  # Best photo for display
+    notes = db.Column(db.Text)
+    is_confirmed = db.Column(db.Boolean, default=False)  # User confirmed
+    # Centroid embedding stored as JSON array of floats
+    centroid_embedding = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    sightings = db.relationship("DeerSighting", backref="individual", lazy="dynamic")
+
+    def __repr__(self):
+        name = self.display_name or self.individual_id
+        return f"<DeerIndividual {name}>"
+
+
+# ---------------------------------------------------------------------------
+# DeerSighting — individual observation record
+# ---------------------------------------------------------------------------
+
+class DeerSighting(db.Model):
+    """A single observation of a tracked individual deer."""
+    __tablename__ = "deer_sightings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    individual_id = db.Column(
+        db.String(20), db.ForeignKey("deer_individuals.individual_id"), nullable=False
+    )
+    image_filename = db.Column(db.String(255), nullable=False)
+    camera_id = db.Column(db.String(50))  # CAM-F01
+    timestamp = db.Column(db.DateTime)
+    confidence = db.Column(db.Float)  # Re-ID cosine similarity
+    species_key = db.Column(db.String(80))
+    is_confirmed = db.Column(db.Boolean, default=False)  # User confirmed match
+    photo_url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<DeerSighting {self.individual_id} @ {self.camera_id}>"

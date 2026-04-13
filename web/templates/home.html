@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% block title %}Strecker — Trail Cam Intelligence{% endblock %}
+
+{% block content %}
+<style>
+    .feature-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    /* ── Trail cam hero ── */
+    .hero-video {
+        position: relative;
+        margin: -2rem -1.5rem 0;
+        height: 92vh;
+        min-height: 520px;
+        max-height: 840px;
+        overflow: hidden;
+        background: #060a06;
+    }
+    .hero-video video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 60%;
+        filter: brightness(0.5);
+    }
+
+    /* Bottom fade into page content */
+    .hero-fade {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 45%;
+        pointer-events: none;
+        z-index: 4;
+    }
+    .hero-fade-dark {
+        background: linear-gradient(to bottom, transparent 0%, rgba(27,25,23,0.5) 45%, #1B1917 100%);
+    }
+    .hero-fade-light {
+        background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.5) 45%, #ffffff 100%);
+    }
+
+    /* Trail cam HUD overlay */
+    .hero-cam-hud {
+        position: absolute;
+        top: 14px; left: 0; right: 0;
+        padding: 0 20px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: rgba(140,200,140,0.85);
+        letter-spacing: 1.5px;
+        z-index: 8;
+        pointer-events: none;
+        display: flex;
+        justify-content: space-between;
+        text-shadow: 0 0 6px rgba(0,180,0,0.3);
+    }
+    .hero-cam-hud .hud-rec {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .hero-cam-hud .hud-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #d33;
+        animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* Hero text overlay */
+    .hero-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        z-index: 10;
+        padding: 0 2rem;
+    }
+    .hero-overlay-inner {
+        max-width: 680px;
+        margin-left: 4%;
+    }
+</style>
+
+<!-- Trail Cam Hero Video -->
+<section class="hero-video" id="hero-video">
+    <video autoplay muted loop playsinline preload="auto"
+           poster="/photos/white_tailed_deer/CAM-F02_20260131_235114_00.jpg"
+           src="{{ url_for('static', filename='hero-trailcam.webm') }}">
+    </video>
+
+    <!-- Trail cam HUD (top bar) -->
+    <div class="hero-cam-hud">
+        <span>CAM-F01 &nbsp; SOUTH FEEDER</span>
+        <span class="hud-rec"><span class="hud-dot"></span> REC</span>
+        <span id="hud-ts"></span>
+    </div>
+
+    <!-- Bottom fade gradient -->
+    <div class="hero-fade hero-fade-dark dark:block hidden"></div>
+    <div class="hero-fade hero-fade-light dark:hidden block"></div>
+
+    <!-- Text overlay -->
+    <div class="hero-overlay">
+        <div class="hero-overlay-inner">
+            <h1 class="text-4xl md:text-5xl font-bold text-white leading-tight mb-5" style="text-shadow: 0 2px 20px rgba(0,0,0,0.7);">
+                Know your land.<br>
+                <span class="text-teal-400">Track what moves on it.</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-200 mb-8 max-w-xl leading-relaxed" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6);">
+                Strecker turns trail camera photos into actionable wildlife data.
+                Upload your SD card, get species inventories, activity patterns,
+                and individual deer tracking &mdash; all from your browser.
+            </p>
+            <div class="flex flex-wrap gap-4">
+                <a href="/properties"
+                   class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg text-sm font-semibold transition shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    Go to My Properties
+                </a>
+                <a href="/properties/new"
+                   class="inline-flex items-center gap-2 border border-white/40 text-white hover:border-teal-400 hover:text-teal-400 px-6 py-3 rounded-lg text-sm font-semibold transition">
+                    + Add a Property
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Live-updating timestamp in the HUD
+(function() {
+    const tsEl = document.getElementById('hud-ts');
+    function updateHud() {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        tsEl.textContent = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    updateHud();
+    setInterval(updateHud, 1000);
+})();
+</script>
+
+<!-- How it Works -->
+<section class="py-16">
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-10">How it works</h2>
+    <div class="space-y-20">
+
+        <!-- Step 1 -->
+        <div class="grid md:grid-cols-2 gap-10 items-center">
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <span class="text-teal-600 font-bold text-lg">1</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Set up your property</h3>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
+                    Draw your property boundary on a satellite map, then drop pins for each camera station.
+                    Tag placement context &mdash; feeder, trail, water source, food plot &mdash; so the pipeline can
+                    correct for observation bias in your data.
+                </p>
+                <a href="/properties/1/cameras" class="text-teal-600 text-sm font-semibold hover:underline">See camera setup &rarr;</a>
+            </div>
+            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+                <div class="demo-frame" data-scroll-y="0">
+                    <iframe src="/properties/1/cameras" loading="lazy" tabindex="-1"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="grid md:grid-cols-2 gap-10 items-center">
+            <div class="md:order-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <span class="text-teal-600 font-bold text-lg">2</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Upload your photos</h3>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
+                    Drag in your SD card folder or a ZIP. The detection pipeline runs MegaDetector + SpeciesNet
+                    to classify every frame, group burst sequences, and extract independent events &mdash;
+                    all processed locally in your browser.
+                </p>
+                <a href="/properties/1/upload" class="text-teal-600 text-sm font-semibold hover:underline">Try uploading &rarr;</a>
+            </div>
+            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg md:order-1">
+                <div class="demo-frame" data-scroll-y="0">
+                    <iframe src="/properties/1/upload" loading="lazy" tabindex="-1"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="grid md:grid-cols-2 gap-10 items-center">
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <span class="text-teal-600 font-bold text-lg">3</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Get your dashboard</h3>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
+                    Species inventories with event counts, 24-hour activity heatmaps, buck-to-doe ratios,
+                    camera leaderboards, network coverage scores, a searchable photo gallery, and
+                    individual deer re-identification tracking.
+                </p>
+                <a href="/properties/1/dashboard" class="text-teal-600 text-sm font-semibold hover:underline">View demo dashboard &rarr;</a>
+            </div>
+            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+                <div class="demo-frame demo-frame-scroll" data-scroll-y="3000" data-scroll-duration="16000" data-initial-offset="200">
+                    <iframe src="/properties/1/dashboard" loading="lazy" tabindex="-1"></iframe>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    .demo-frame-wrap {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .demo-frame {
+        position: relative;
+        width: 100%;
+        height: 340px;
+        overflow: hidden;
+    }
+    .demo-frame iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 200%;
+        height: 6000px;
+        transform: scale(0.5);
+        transform-origin: top left;
+        border: none;
+        pointer-events: none;
+    }
+</style>
+
+<script>
+(function() {
+    // Auto-scroll the dashboard iframe to slowly pan through the page
+    const scrollFrames = document.querySelectorAll('.demo-frame-scroll');
+    scrollFrames.forEach(frame => {
+        const iframe = frame.querySelector('iframe');
+        const maxY = parseInt(frame.dataset.scrollY || '0');
+        const duration = parseInt(frame.dataset.scrollDuration || '8000');
+        const initialOffset = parseInt(frame.dataset.initialOffset || '0');
+
+        if (maxY <= 0) return;
+
+        // Set initial offset immediately so it doesn't start blank
+        iframe.style.transform = `scale(0.5) translateY(-${initialOffset}px)`;
+
+        iframe.addEventListener('load', () => {
+            let start = null;
+
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const elapsed = (timestamp - start) % (duration * 2);
+                let progress;
+
+                if (elapsed < duration) {
+                    progress = elapsed / duration;
+                } else {
+                    progress = 1 - (elapsed - duration) / duration;
+                }
+
+                // Ease in-out
+                progress = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const scrollY = initialOffset + progress * (maxY - initialOffset);
+                iframe.style.transform = `scale(0.5) translateY(-${scrollY}px)`;
+
+                requestAnimationFrame(animate);
+            }
+
+            // Start after iframes have rendered content
+            setTimeout(() => requestAnimationFrame(animate), 2000);
+        });
+    });
+})();
+</script>
+
+<!-- Features -->
+<section class="py-16 border-t border-gray-200 dark:border-gray-700">
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-10">What you get</h2>
+    <div class="grid md:grid-cols-2 gap-6">
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Species Inventory</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Every species on your property, ranked by independent events with confidence scores and activity patterns.
+                </p>
+            </div>
+        </div>
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Photo Gallery</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Browse every detection with species and camera filters, search by date, and page through thousands of photos.
+                </p>
+            </div>
+        </div>
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Deer Re-ID</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Track individual deer across cameras over time. Upload reference photos, tag bucks, and build a herd profile.
+                </p>
+            </div>
+        </div>
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Camera Network Scoring</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Density, diversity, distribution, and temporal coverage scored 0&ndash;100 with a letter grade and placement recommendations.
+                </p>
+            </div>
+        </div>
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Activity Patterns</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    24-hour activity heatmaps per species. See who's nocturnal, crepuscular, or diurnal on your land.
+                </p>
+            </div>
+        </div>
+
+        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Season-over-Season Trends</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Compare species activity across seasons. Track population changes, new arrivals, and disappearances year over year.
+                </p>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-16 border-t border-gray-200 dark:border-gray-700 text-center">
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Ready to see what's on your property?</h2>
+    <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-lg mx-auto">
+        Set up your first property in under a minute. Upload photos from a single camera or your entire network.
+    </p>
+    <a href="/properties"
+       class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-lg text-sm font-semibold transition">
+        Get Started
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+    </a>
+</section>
+
+{% endblock %}

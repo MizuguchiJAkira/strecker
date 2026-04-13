@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+
+{% block title %}Coverage Map - {{ brand_name }}{% endblock %}
+
+{% block content %}
+<style>
+    #coverage-map { height: 100%; width: 100%; }
+    .habitat-marker {
+        border-radius: 50%;
+        border: 2px solid rgba(13, 115, 119, 0.8);
+        box-shadow: 0 0 12px rgba(13, 115, 119, 0.4);
+        transition: transform 0.15s;
+    }
+    .habitat-marker:hover { transform: scale(1.15); }
+    .upload-row { border-bottom: 1px solid #3D3A35; }
+    .upload-row:last-child { border-bottom: none; }
+    .pulse-ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid rgba(13, 115, 119, 0.5);
+        animation: pulse-ring 2s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+        0% { transform: scale(1); opacity: 0.6; }
+        100% { transform: scale(2.5); opacity: 0; }
+    }
+</style>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<!-- Header -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-700 dark:text-gray-100">Network Coverage</h1>
+        <p class="text-sm text-slate-500 dark:text-gray-400 mt-1">
+            Trail cam data collection points across the United States
+        </p>
+    </div>
+    <button onclick="seedDemo()" id="seed-btn"
+            class="inline-flex items-center px-4 py-2 bg-gray-700 text-white text-xs font-medium rounded-lg hover:bg-gray-600 border border-gray-600 transition">
+        Seed Demo Data
+    </button>
+</div>
+
+<!-- Stats bar -->
+<div id="stats-bar" class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-properties">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">Properties</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-cameras">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">Cameras</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-uploads">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">Uploads</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-photos">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">Photos</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-states">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">States</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+        <div class="text-xl font-extrabold text-teal-600" id="stat-habitats">--</div>
+        <div class="text-[10px] text-slate-500 dark:text-gray-400">Habitats</div>
+    </div>
+</div>
+
+<!-- Map + Sidebar layout -->
+<div class="flex gap-0 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700" style="height: calc(100vh - 220px); min-height: 500px;">
+    <!-- Map -->
+    <div id="coverage-map" class="flex-1"></div>
+
+    <!-- Sidebar -->
+    <div id="habitat-sidebar" class="w-72 bg-gray-900 border-l border-gray-700 flex flex-col transition-all duration-300 overflow-hidden"
+         style="margin-right: -288px; opacity: 0;">
+        <div class="p-5 flex-1 overflow-y-auto">
+            <!-- Header -->
+            <div class="flex items-start justify-between mb-1">
+                <h2 id="sidebar-habitat" class="text-base font-bold text-gray-100 leading-tight pr-2"></h2>
+                <button onclick="closeSidebar()" class="text-gray-500 hover:text-gray-300 text-lg flex-shrink-0 -mt-1">&times;</button>
+            </div>
+            <div id="sidebar-state" class="text-[10px] text-gray-500 uppercase tracking-wider mb-5"></div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-2 mb-5">
+                <div class="text-center p-2.5 bg-gray-800 rounded-lg">
+                    <div id="sidebar-properties" class="text-lg font-extrabold text-teal-500">0</div>
+                    <div class="text-[9px] text-gray-500">Properties</div>
+                </div>
+                <div class="text-center p-2.5 bg-gray-800 rounded-lg">
+                    <div id="sidebar-cameras" class="text-lg font-extrabold text-teal-500">0</div>
+                    <div class="text-[9px] text-gray-500">Cameras</div>
+                </div>
+                <div class="text-center p-2.5 bg-gray-800 rounded-lg">
+                    <div id="sidebar-photos" class="text-lg font-extrabold text-teal-500">0</div>
+                    <div class="text-[9px] text-gray-500">Photos</div>
+                </div>
+            </div>
+
+            <!-- Upload history -->
+            <h3 class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Upload History</h3>
+            <div id="sidebar-uploads" class="space-y-0">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// Approximate ecoregion polygons (simplified boundaries)
+// These are rough visual representations, not scientific boundaries.
+// ═══════════════════════════════════════════════════════════════════
+
+const HABITAT_POLYGONS = {
+    "Edwards Plateau": [
+        [31.8, -101.5], [31.8, -98.0], [31.0, -97.2], [30.0, -97.5],
+        [29.5, -98.5], [29.8, -100.0], [30.5, -101.2],
+    ],
+    "South Texas Brush Country": [
+        [28.8, -100.5], [29.5, -98.5], [29.0, -97.5], [27.8, -97.2],
+        [26.1, -97.2], [26.1, -99.0], [27.5, -100.0],
+    ],
+    "Texas Gulf Coast": [
+        [30.2, -97.0], [30.5, -95.5], [29.8, -93.8], [29.0, -94.5],
+        [28.0, -96.0], [27.8, -97.2], [29.0, -97.5],
+    ],
+    "East Texas Piney Woods": [
+        [33.8, -95.5], [33.8, -93.5], [31.8, -93.5], [30.5, -93.8],
+        [30.5, -95.5], [31.8, -95.0],
+    ],
+    "Texas Panhandle Grasslands": [
+        [36.5, -103.0], [36.5, -100.0], [34.5, -99.5], [33.5, -100.0],
+        [33.5, -103.0],
+    ],
+    "Post Oak Savannah": [
+        [31.8, -98.0], [32.5, -96.5], [31.5, -95.5], [30.5, -95.5],
+        [30.2, -97.0], [31.0, -97.2],
+    ],
+    "Southeast Coastal Plain": [
+        [33.5, -88.5], [33.0, -85.0], [31.5, -84.0], [30.0, -84.0],
+        [29.5, -85.5], [30.5, -88.5], [31.5, -89.5],
+    ],
+    "Piedmont": [
+        [36.5, -83.0], [36.0, -79.5], [35.0, -79.0], [33.5, -80.0],
+        [33.0, -82.5], [34.0, -84.0], [35.5, -84.0],
+    ],
+    "Midwest Hardwood Forest": [
+        [42.5, -90.5], [42.5, -84.5], [40.5, -83.0], [38.5, -84.5],
+        [38.5, -88.0], [40.0, -91.0],
+    ],
+    "Great Plains Prairie": [
+        [43.0, -100.5], [43.0, -96.5], [40.5, -95.5], [37.0, -96.0],
+        [34.5, -97.5], [34.5, -100.0], [37.0, -101.5], [40.0, -101.5],
+    ],
+    "Northeast Mixed Forest": [
+        [45.0, -75.0], [45.0, -69.5], [43.0, -69.5], [41.0, -71.5],
+        [40.5, -74.5], [41.5, -76.5], [43.0, -76.0],
+    ],
+    "Appalachian Forest": [
+        [39.5, -82.0], [39.0, -79.0], [37.5, -78.5], [35.5, -82.5],
+        [35.0, -84.5], [36.5, -84.5], [38.5, -82.5],
+    ],
+    "Pacific Northwest Conifer": [
+        [48.5, -124.5], [48.5, -120.5], [46.0, -120.0], [43.5, -121.0],
+        [42.0, -124.0], [44.0, -124.5],
+    ],
+    "Rocky Mountain Montane": [
+        [48.0, -115.0], [48.0, -109.0], [44.0, -107.5], [40.0, -107.5],
+        [37.0, -109.0], [37.0, -112.0], [41.5, -114.0], [45.0, -114.5],
+    ],
+    "Southwest Desert Scrub": [
+        [37.0, -114.5], [37.0, -109.0], [34.5, -106.5], [31.3, -106.5],
+        [31.3, -111.0], [33.0, -114.5], [35.5, -114.5],
+    ],
+    "Great Lakes Boreal": [
+        [48.5, -92.0], [48.5, -84.5], [46.0, -84.0], [44.5, -85.5],
+        [44.5, -90.0], [46.0, -92.5],
+    ],
+    "Central Alabama": [
+        [34.0, -87.5], [34.0, -85.5], [32.5, -85.0], [31.5, -85.5],
+        [31.5, -88.0], [33.0, -88.5],
+    ],
+    "North Georgia": [
+        [35.0, -85.5], [35.0, -83.0], [33.5, -83.0], [33.0, -84.5],
+        [33.5, -85.5],
+    ],
+    "NW Florida": [
+        [31.0, -87.5], [31.0, -85.5], [30.0, -84.5], [29.5, -85.5],
+        [30.0, -87.5],
+    ],
+    "Central MS": [
+        [34.0, -90.5], [34.0, -89.0], [32.0, -88.5], [31.0, -89.5],
+        [31.0, -91.0], [32.5, -91.5],
+    ],
+    "SE Louisiana": [
+        [31.5, -92.0], [31.5, -89.5], [29.5, -89.0], [29.0, -90.5],
+        [29.5, -92.5], [30.5, -93.5],
+    ],
+    "Central Ohio": [
+        [41.5, -84.0], [41.5, -81.5], [39.5, -81.0], [38.5, -82.0],
+        [39.0, -84.5],
+    ],
+    "Central Indiana": [
+        [41.0, -87.5], [41.0, -85.0], [39.0, -84.5], [38.5, -86.0],
+        [39.5, -87.5],
+    ],
+    "Northern Illinois": [
+        [42.5, -90.5], [42.5, -87.5], [41.0, -87.5], [40.5, -89.5],
+        [41.0, -91.0],
+    ],
+    "Central Wisconsin": [
+        [46.0, -91.0], [46.0, -88.0], [44.0, -87.5], [43.0, -88.5],
+        [43.0, -91.0], [44.5, -91.5],
+    ],
+    "Central Missouri": [
+        [40.0, -94.5], [40.0, -91.5], [38.0, -90.5], [37.0, -91.5],
+        [37.0, -94.0], [38.5, -95.0],
+    ],
+    "Central Iowa": [
+        [43.5, -95.5], [43.5, -92.5], [41.5, -91.5], [41.0, -93.5],
+        [41.5, -96.0],
+    ],
+    "Western Mass": [
+        [42.7, -73.5], [42.8, -72.0], [42.0, -71.8], [41.5, -72.5],
+        [41.8, -73.5],
+    ],
+    "Hudson Valley": [
+        [42.5, -75.0], [42.5, -73.5], [41.0, -73.5], [40.5, -74.5],
+        [41.0, -75.5],
+    ],
+    "Central PA": [
+        [41.5, -79.0], [41.5, -76.5], [40.0, -76.0], [39.7, -77.5],
+        [40.0, -79.5],
+    ],
+    "Shenandoah Valley": [
+        [39.0, -80.0], [39.0, -78.5], [37.5, -78.5], [37.0, -79.5],
+        [37.5, -80.5],
+    ],
+    "Piedmont NC": [
+        [36.5, -81.0], [36.5, -79.0], [35.5, -78.5], [35.0, -80.0],
+        [35.5, -81.5],
+    ],
+    "Bluegrass Region": [
+        [39.0, -85.5], [39.0, -83.5], [37.5, -83.5], [37.0, -84.5],
+        [38.0, -86.0],
+    ],
+    "East Tennessee": [
+        [36.5, -84.5], [36.5, -83.0], [35.5, -82.5], [35.0, -84.0],
+        [35.5, -85.0],
+    ],
+    "Central Kansas": [
+        [39.5, -100.0], [39.5, -97.5], [38.0, -97.0], [37.5, -98.5],
+        [38.0, -100.5],
+    ],
+    "Eastern Nebraska": [
+        [42.5, -97.5], [42.5, -95.5], [41.0, -95.0], [40.5, -96.0],
+        [40.5, -98.0],
+    ],
+    "Central Oklahoma": [
+        [36.5, -98.5], [36.5, -96.5], [35.0, -96.0], [34.5, -97.5],
+        [35.0, -99.0],
+    ],
+    "South Texas": [
+        [30.0, -99.5], [30.0, -97.5], [28.8, -97.0], [28.0, -98.0],
+        [28.5, -99.5],
+    ],
+    "Matagorda Bay": [
+        [29.5, -97.0], [29.5, -95.8], [28.3, -95.5], [28.0, -96.5],
+        [28.5, -97.5],
+    ],
+    "West Texas": [
+        [34.0, -103.5], [34.0, -101.0], [32.0, -100.5], [31.0, -102.0],
+        [31.5, -104.0],
+    ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// Map init
+// ═══════════════════════════════════════════════════════════════════
+
+const map = L.map('coverage-map', {
+    center: [37.5, -96],
+    zoom: 4,
+    minZoom: 3,
+    maxZoom: 12,
+    zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+}).addTo(map);
+
+let markers = [];
+let activePolygon = null;   // currently shown habitat boundary
+let activeMarkerId = null;  // which marker is active
+
+// ═══════════════════════════════════════════════════════════════════
+// Load coverage data
+// ═══════════════════════════════════════════════════════════════════
+
+function loadCoverage() {
+    fetch('/api/owner/coverage')
+        .then(r => r.json())
+        .then(data => {
+            updateStats(data.summary);
+            plotHabitats(data.habitats);
+        })
+        .catch(err => console.error('Coverage load error:', err));
+}
+
+function updateStats(s) {
+    document.getElementById('stat-properties').textContent = s.total_properties.toLocaleString();
+    document.getElementById('stat-cameras').textContent = s.total_cameras.toLocaleString();
+    document.getElementById('stat-uploads').textContent = s.total_uploads.toLocaleString();
+    document.getElementById('stat-photos').textContent = s.total_photos.toLocaleString();
+    document.getElementById('stat-states').textContent = s.states_covered;
+    document.getElementById('stat-habitats').textContent = s.habitats_covered;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Habitat polygon helpers
+// ═══════════════════════════════════════════════════════════════════
+
+function clearActivePolygon() {
+    if (activePolygon) {
+        map.removeLayer(activePolygon);
+        activePolygon = null;
+        activeMarkerId = null;
+    }
+}
+
+function showHabitatBoundary(habitat, markerLatLng, markerId) {
+    clearActivePolygon();
+
+    // Find polygon — try exact name first, then fuzzy match
+    let coords = HABITAT_POLYGONS[habitat];
+    if (!coords) {
+        // Fuzzy: check if habitat name is contained in any key
+        for (const [key, val] of Object.entries(HABITAT_POLYGONS)) {
+            if (habitat.includes(key) || key.includes(habitat)) {
+                coords = val; break;
+            }
+        }
+    }
+
+    if (!coords) {
+        // Fallback: generate a rough rectangular region around the marker
+        const lat = markerLatLng.lat;
+        const lon = markerLatLng.lng;
+        const dlat = 0.8;  // ~90km
+        const dlon = 1.0;  // ~85km at mid-latitudes
+        coords = [
+            [lat + dlat, lon - dlon],
+            [lat + dlat, lon + dlon],
+            [lat - dlat, lon + dlon * 0.7],
+            [lat - dlat * 0.6, lon - dlon * 0.8],
+            [lat + dlat * 0.3, lon - dlon * 1.1],
+        ];
+    }
+
+    activePolygon = L.polygon(coords, {
+        color: '#0D7377',
+        weight: 2,
+        opacity: 0.85,
+        fillColor: '#0D7377',
+        fillOpacity: 0.12,
+        dashArray: '6, 4',
+        className: 'habitat-boundary',
+    }).addTo(map);
+
+    activeMarkerId = markerId;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Plot habitats on the map
+// ═══════════════════════════════════════════════════════════════════
+
+function plotHabitats(habitats) {
+    // Clear existing
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    clearActivePolygon();
+
+    habitats.forEach((h, idx) => {
+        const size = Math.min(48, Math.max(16, 12 + Math.sqrt(h.cameras) * 6));
+
+        const icon = L.divIcon({
+            className: '',
+            html: `<div class="habitat-marker" style="
+                width: ${size}px;
+                height: ${size}px;
+                background: radial-gradient(circle at 35% 35%, rgba(13,115,119,0.9), rgba(13,115,119,0.4));
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: ${Math.max(9, size / 3.5)}px;
+                font-weight: 700;
+                color: #fff;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            ">${h.cameras}</div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+        });
+
+        const marker = L.marker([h.lat, h.lon], { icon }).addTo(map);
+        marker._habitatData = h;
+        marker._habitatIdx = idx;
+
+        // Show habitat polygon + sidebar on click
+        marker.on('click', () => {
+            showHabitatBoundary(h.habitat, marker.getLatLng(), idx);
+            openSidebar(h);
+        });
+
+        markers.push(marker);
+    });
+
+    // Fit bounds
+    if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Sidebar
+// ═══════════════════════════════════════════════════════════════════
+
+function openSidebar(h) {
+    document.getElementById('sidebar-habitat').textContent = h.habitat;
+    document.getElementById('sidebar-state').textContent = h.state;
+    document.getElementById('sidebar-properties').textContent = h.properties;
+    document.getElementById('sidebar-cameras').textContent = h.cameras;
+    document.getElementById('sidebar-photos').textContent = h.total_photos.toLocaleString();
+
+    const uploadsEl = document.getElementById('sidebar-uploads');
+    if (!h.uploads.length) {
+        uploadsEl.innerHTML = '<div class="text-xs text-gray-600 py-2">No uploads yet</div>';
+    } else {
+        uploadsEl.innerHTML = h.uploads.map(u =>
+            `<div class="flex items-center justify-between py-2.5 border-b border-gray-800 last:border-b-0">
+                <span class="text-xs text-gray-400">${u.date || '--'}</span>
+                <span class="text-xs text-teal-400 font-semibold">${u.photos.toLocaleString()} photos</span>
+            </div>`
+        ).join('');
+    }
+
+    const sidebar = document.getElementById('habitat-sidebar');
+    sidebar.style.marginRight = '0';
+    sidebar.style.opacity = '1';
+
+    // Invalidate map size so Leaflet redraws into the smaller space
+    setTimeout(() => map.invalidateSize(), 310);
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('habitat-sidebar');
+    sidebar.style.marginRight = '-288px';
+    sidebar.style.opacity = '0';
+    clearActivePolygon();
+    setTimeout(() => map.invalidateSize(), 310);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Seed demo data
+// ═══════════════════════════════════════════════════════════════════
+
+function seedDemo() {
+    const btn = document.getElementById('seed-btn');
+    btn.disabled = true;
+    btn.textContent = 'Seeding...';
+
+    fetch('/api/owner/coverage/seed-demo', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = 'Seed Demo Data';
+            loadCoverage();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.textContent = 'Seed Demo Data';
+            console.error('Seed error:', err);
+        });
+}
+
+// Initial load
+loadCoverage();
+</script>
+{% endblock %}

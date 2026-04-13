@@ -1,0 +1,101 @@
+"""Central configuration for Basal Informatics.
+
+All thresholds, paths, API keys, and model configs.
+Reads from environment variables with sensible defaults.
+"""
+
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- Database ---
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = int(os.environ.get("DB_PORT", 5432))
+DB_NAME = os.environ.get("DB_NAME", "basal")
+DB_USER = os.environ.get("DB_USER", "basal")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "basal_dev")
+
+# --- Strecker thresholds ---
+BURST_THRESHOLD_SECONDS = 60        # Photos within this window = same trigger burst
+INDEPENDENCE_THRESHOLD_MINUTES = 30  # Standard independence threshold for camera trap ecology
+REVIEW_ENTROPY_THRESHOLD = 0.59     # Binary entropy threshold calibrated for ~8% review rate
+                                     # (Norouzzadeh 0.5 was for full K-class; binary max = ln(2) ≈ 0.693)
+MIN_MEGADETECTOR_CONFIDENCE = 0.3    # Below this, skip classification entirely
+MEGADETECTOR_MODEL = os.environ.get("MEGADETECTOR_MODEL", "MDV5A")  # MDV5A or MDV5B
+MEGADETECTOR_CONFIDENCE_THRESHOLD = float(os.environ.get("MEGADETECTOR_CONFIDENCE_THRESHOLD", "0.15"))
+SPECIESNET_MODEL = os.environ.get("SPECIESNET_MODEL", "kaggle:google/speciesnet/pyTorch/v4.0.2a/1")
+
+# --- Classification ---
+MODEL_PATH = os.environ.get("MODEL_PATH", "./models/species_classifier.pt")
+MEGADETECTOR_PATH = os.environ.get("MEGADETECTOR_PATH", "./models/megadetector_v5.pt")
+CONFIDENCE_CALIBRATION_METHOD = "temperature_scaling"  # Dussert et al. 2025
+SPECIESNET_CONFIDENCE_THRESHOLD = 0.7  # Below this = "Unknown"
+TEMPERATURE_SCALING_T = 1.08           # Softens overconfident predictions ~5-10%
+
+# --- Detection radii by body size (meters) ---
+DETECTION_RADIUS = {"large": 200, "medium": 150, "small": 100}
+
+# --- Bias correction ---
+PLACEMENT_CONTEXTS = ["trail", "feeder", "food_plot", "water", "random", "other"]
+TRAIL_FEEDER_INFLATION_FACTOR = 9.7  # Kolowski & Forrester 2017
+
+# --- Financial modeling ---
+DISCOUNT_RATE = 0.05  # For 10-year NPV projections
+
+# --- Habitat ---
+HABITAT_UNIT_ID_FORMAT = "HU-{huc10}-{ecoregion_iv}-{nlcd}"
+
+# --- Corridor defaults (meters) ---
+RIPARIAN_BUFFER_M = 100
+RIDGE_BUFFER_M = 50
+EDGE_BUFFER_M = 30
+
+# --- Paths ---
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+UPLOAD_DIR = os.path.abspath(os.environ.get("STRECKER_UPLOAD_DIR", os.path.join(_project_root, "uploads")))
+REPORT_OUTPUT_DIR = os.path.abspath(os.path.join(_project_root, "reports"))
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql")
+
+# --- Flask ---
+_default_secret = "dev-only-key-not-for-production"
+FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", _default_secret)
+FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+# Block startup if SECRET_KEY is still the default in production
+if not FLASK_DEBUG and FLASK_SECRET_KEY == _default_secret:
+    import warnings
+    warnings.warn(
+        "FLASK_SECRET_KEY not set! Set it via environment variable before deploying.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+# --- SQLAlchemy ---
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///basal.db")
+SECRET_KEY = FLASK_SECRET_KEY
+
+# --- PDF styling ---
+PDF_COLORS = {
+    "brand_teal": "#0D7377",
+    "text_primary": "#1A1A1A",
+    "text_secondary": "#5A6B7F",
+    "risk_high": "#C43B31",
+    "risk_moderate": "#D4880F",
+    "risk_low": "#2A7D3F",
+    "table_header_bg": "#0D7377",
+    "table_header_text": "#FFFFFF",
+    "table_alt_row": "#F5F7F9",
+}
+PDF_FONTS = {"heading": "Helvetica-Bold", "body": "Helvetica", "mono": "Courier"}
+
+# --- Re-ID (individual deer tracking) ---
+REID_ENABLED_SPECIES = ["white_tailed_deer", "axis_deer"]  # Species with re-ID support
+REID_MODEL_PATH = os.environ.get("REID_MODEL_PATH", "./models/deer_reid_encoder.pt")
+REID_EMBEDDING_DIM = 128  # Feature vector dimensionality
+REID_MATCH_THRESHOLD = 0.75  # Cosine sim above this = auto-match
+REID_CANDIDATE_THRESHOLD = 0.55  # Above this = candidate for user review
+REID_TEMPORAL_BOOST = 0.05  # Similarity boost for same camera within 2 hours
+REID_MIN_CROP_SIZE = 64  # Minimum crop dimension (pixels) for reliable embedding
+REID_ANTLER_SEASON_MONTHS = [5, 6, 7, 8, 9, 10, 11]  # May-Nov (hardened antlers)

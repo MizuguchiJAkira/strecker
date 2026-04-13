@@ -1,0 +1,32 @@
+# Core
+click>=8.1
+python-dotenv>=1.0
+pydantic>=2.0
+
+# Database
+psycopg2-binary>=2.9
+
+# Spatial
+shapely>=2.0
+geopandas>=0.14
+
+# Web
+flask>=3.0
+flask-sqlalchemy>=3.1
+flask-login>=0.6
+flask-migrate>=4.0
+flask-wtf>=1.2
+
+# Reports
+reportlab>=4.0
+
+# Data
+pandas>=2.1
+numpy>=1.26
+
+# Detection / ML
+speciesnet>=5.0
+Pillow>=9.0
+
+# Production server
+gunicorn>=21.0

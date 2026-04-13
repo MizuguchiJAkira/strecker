@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv/
+venv/
+
+# Database
+instance/*.db
+*.db
+
+# Uploads & generated output
+uploads/
+reports/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# Claude
+.claude/
+
+# Node (if any)
+node_modules/

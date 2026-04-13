@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Enterprise Demo — {{ brand_name }}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold text-slate-700 mb-1">Nature Exposure Assessment</h1>
+    <p class="text-slate-500 mb-8 text-sm">
+        Interactive demo of the full insurer pipeline. Run a complete risk assessment
+        on the Edwards Plateau demo dataset.
+    </p>
+
+    <!-- Parcel info -->
+    <div class="grid grid-cols-2 gap-6 mb-8">
+        <div class="border border-gray-200 rounded-lg p-6">
+            <h2 class="text-sm font-bold text-slate-700 mb-4">Demo Parcel</h2>
+            <table class="w-full text-sm">
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-slate-500 font-semibold">Parcel ID</td>
+                    <td class="py-2 text-right">TX-KIM-2024-04817</td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-slate-500 font-semibold">Location</td>
+                    <td class="py-2 text-right">Kimble County, TX</td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-slate-500 font-semibold">Acreage</td>
+                    <td class="py-2 text-right">2,340</td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-slate-500 font-semibold">Ecoregion</td>
+                    <td class="py-2 text-right">Edwards Plateau (Level III)</td>
+                </tr>
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-slate-500 font-semibold">Camera stations</td>
+                    <td class="py-2 text-right">14</td>
+                </tr>
+                <tr>
+                    <td class="py-2 text-slate-500 font-semibold">Monitoring period</td>
+                    <td class="py-2 text-right">10 months</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="border border-gray-200 rounded-lg p-6">
+            <h2 class="text-sm font-bold text-slate-700 mb-4">Pipeline Stages</h2>
+            <div class="space-y-2 text-sm" id="pipeline-stages">
+                <div class="flex items-center gap-2" data-stage="ingest">
+                    <span class="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs" id="icon-ingest">&bull;</span>
+                    <span>Strecker (ingest + classify)</span>
+                </div>
+                <div class="flex items-center gap-2" data-stage="habitat">
+                    <span class="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs" id="icon-habitat">&bull;</span>
+                    <span>Habitat analysis</span>
+                </div>
+                <div class="flex items-center gap-2" data-stage="bias">
+                    <span class="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs" id="icon-bias">&bull;</span>
+                    <span>IPW bias correction</span>
+                </div>
+                <div class="flex items-center gap-2" data-stage="risk">
+                    <span class="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs" id="icon-risk">&bull;</span>
+                    <span>Risk synthesis</span>
+                </div>
+                <div class="flex items-center gap-2" data-stage="pdf">
+                    <span class="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs" id="icon-pdf">&bull;</span>
+                    <span>Enterprise PDF</span>
+                </div>
+            </div>
+
+            <button id="run-btn"
+                    onclick="runAssessment()"
+                    class="mt-6 w-full bg-teal-600 text-white font-semibold py-3 px-6
+                           rounded hover:bg-teal-700 transition text-sm">
+                Run Assessment
+            </button>
+        </div>
+    </div>
+
+    <!-- Results panel (hidden until assessment runs) -->
+    <div id="results-panel" class="hidden">
+        <!-- Risk rating badge -->
+        <div class="flex items-center gap-6 mb-6">
+            <div id="risk-badge" class="px-6 py-3 rounded text-white font-bold text-lg">
+            </div>
+            <div>
+                <div class="text-3xl font-bold text-teal-600" id="fh-score"></div>
+                <div class="text-xs text-slate-500">Feral Hog Exposure Score</div>
+            </div>
+        </div>
+
+        <!-- Key metrics -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-xl font-bold text-slate-700" id="metric-species"></div>
+                <div class="text-xs text-slate-500 mt-1">Species detected</div>
+            </div>
+            <div class="border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-xl font-bold text-slate-700" id="metric-annual-loss"></div>
+                <div class="text-xs text-slate-500 mt-1">Est. annual loss</div>
+            </div>
+            <div class="border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-xl font-bold text-slate-700" id="metric-npv"></div>
+                <div class="text-xs text-slate-500 mt-1">10-year NPV</div>
+            </div>
+            <div class="border border-gray-200 rounded-lg p-4 text-center">
+                <div class="text-xl font-bold text-slate-700" id="metric-esa"></div>
+                <div class="text-xs text-slate-500 mt-1">ESA species flagged</div>
+            </div>
+        </div>
+
+        <!-- Species inventory -->
+        <h2 class="text-lg font-bold text-slate-700 mb-3">Species Inventory</h2>
+        <table class="w-full text-sm mb-6" id="species-table">
+            <thead>
+                <tr class="bg-teal-600 text-white">
+                    <th class="py-2 px-3 text-left rounded-tl">Species</th>
+                    <th class="py-2 px-3 text-right">Det. Freq.</th>
+                    <th class="py-2 px-3 text-center">Confidence</th>
+                    <th class="py-2 px-3 text-left rounded-tr">Risk Flag</th>
+                </tr>
+            </thead>
+            <tbody id="species-tbody"></tbody>
+        </table>
+
+        <!-- Download -->
+        <div class="flex gap-4">
+            <a id="pdf-link" href="#"
+               class="flex-1 block border-2 border-teal-600 rounded-lg p-4
+                      text-center hover:bg-teal-600 hover:text-white transition group">
+                <div class="font-semibold text-teal-600 group-hover:text-white">
+                    Download Nature Exposure Report (PDF)
+                </div>
+                <div class="text-xs text-slate-500 group-hover:text-teal-100 mt-1"
+                     id="pdf-meta"></div>
+            </a>
+        </div>
+
+        <!-- Processing time -->
+        <p class="text-xs text-slate-500 mt-4" id="timing"></p>
+    </div>
+</div>
+
+<script>
+const ratingColors = {
+    'CRITICAL': '#991B1B', 'HIGH': '#C43B31',
+    'ELEVATED': '#D4880F', 'MODERATE': '#D4880F', 'LOW': '#2A7D3F'
+};
+
+function setStageIcon(stage, status) {
+    const icon = document.getElementById('icon-' + stage);
+    if (status === 'running') {
+        icon.className = 'w-5 h-5 rounded-full bg-yellow-100 border border-yellow-400 flex items-center justify-center text-xs animate-pulse';
+        icon.textContent = '...';
+    } else if (status === 'done') {
+        icon.className = 'w-5 h-5 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs';
+        icon.textContent = '✓';
+    }
+}
+
+async function runAssessment() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    btn.className = btn.className.replace('bg-teal-600 hover:bg-teal-700',
+                                          'bg-gray-400 cursor-not-allowed');
+
+    // Show progress
+    const stages = ['ingest', 'habitat', 'bias', 'risk', 'pdf'];
+    for (const s of stages) setStageIcon(s, '');
+
+    setStageIcon('ingest', 'running');
+
+    try {
+        const resp = await fetch('/demo/run', { method: 'POST' });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        // Mark all stages done
+        for (const s of stages) setStageIcon(s, 'done');
+
+        // Show results
+        const panel = document.getElementById('results-panel');
+        panel.classList.remove('hidden');
+
+        // Risk badge
+        const badge = document.getElementById('risk-badge');
+        badge.textContent = data.overall_risk_rating;
+        badge.style.backgroundColor = ratingColors[data.overall_risk_rating] || '#5A6B7F';
+
+        // FH Score
+        const fhScore = data.feral_hog_exposure_score;
+        document.getElementById('fh-score').textContent =
+            fhScore ? fhScore.score + '/100' : 'N/A';
+
+        // Metrics
+        document.getElementById('metric-species').textContent =
+            data.species_inventory.length;
+
+        const hogProj = data.damage_projections.feral_hog;
+        document.getElementById('metric-annual-loss').textContent =
+            hogProj ? '$' + hogProj.estimated_annual_loss.toLocaleString() : '$0';
+        document.getElementById('metric-npv').textContent =
+            hogProj ? '$' + hogProj.ten_year_npv.toLocaleString() : '$0';
+
+        const reg = data.regulatory_risk || {};
+        document.getElementById('metric-esa').textContent =
+            (reg.esa_species_present || []).length;
+
+        // Species table
+        const tbody = document.getElementById('species-tbody');
+        tbody.innerHTML = '';
+        for (const sp of data.species_inventory) {
+            const flag = sp.risk_flag || '\u2014';
+            const rowClass = flag.includes('HIGH') ? 'bg-red-50' :
+                             flag.includes('MODERATE') ? 'bg-amber-50' : '';
+            tbody.innerHTML += `<tr class="${rowClass}">
+                <td class="py-2 px-3">${sp.common_name}</td>
+                <td class="py-2 px-3 text-right">${sp.detection_frequency_pct.toFixed(1)}%</td>
+                <td class="py-2 px-3 text-center">${sp.confidence_grade}</td>
+                <td class="py-2 px-3 text-sm">${flag}</td>
+            </tr>`;
+        }
+
+        // PDF download
+        const pdfLink = document.getElementById('pdf-link');
+        pdfLink.href = '/demo/download-pdf';
+        document.getElementById('pdf-meta').textContent =
+            data.pdf_size_kb ? data.pdf_size_kb + ' KB' : '';
+
+        // Timing
+        document.getElementById('timing').textContent =
+            'Processed in ' + (data.processing_time_sec || 0).toFixed(1) + ' seconds';
+
+    } catch (err) {
+        alert('Request failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run Assessment';
+        btn.className = btn.className.replace('bg-gray-400 cursor-not-allowed',
+                                               'bg-teal-600 hover:bg-teal-700');
+    }
+}
+</script>
+{% endblock %}

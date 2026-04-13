@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+{% block title %}Camera Setup - {{ property.name }}{% endblock %}
+
+{% block content %}
+<!-- Override main padding for full-bleed layout -->
+<style>
+    main.flex-1 { max-width: 100% !important; padding: 0 !important; }
+    #camera-map { height: calc(100vh - 73px - 53px); }
+    .leaflet-popup-content { margin: 12px; }
+    .toast-msg {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #0D7377; color: #fff; padding: 8px 20px; border-radius: 6px;
+        font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s;
+    }
+    .toast-msg.show { opacity: 1; }
+    .cam-marker {
+        background: #1e293b; color: #fff; border-radius: 50%;
+        width: 36px; height: 36px; display: flex; align-items: center;
+        justify-content: center; font-size: 11px; font-weight: 700;
+        border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .placement-badge {
+        display: inline-block; padding: 1px 8px; border-radius: 9999px;
+        font-size: 11px; font-weight: 600; text-transform: capitalize;
+    }
+    .placement-feeder   { background: #fef3c7; color: #92400e; }
+    .placement-trail    { background: #d1fae5; color: #065f46; }
+    .placement-water    { background: #dbeafe; color: #1e40af; }
+    .placement-food_plot{ background: #ede9fe; color: #5b21b6; }
+    .placement-random   { background: #f3f4f6; color: #374151; }
+    .placement-other    { background: #fce7f3; color: #9d174d; }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="flex" style="height: calc(100vh - 73px - 53px);">
+    <!-- Sidebar -->
+    <div id="sidebar" class="flex flex-col bg-white border-r border-gray-200" style="width: 350px; min-width: 350px;">
+        <div class="px-5 pt-5 pb-3 border-b border-gray-100">
+            <h1 class="text-lg font-bold text-slate-700 truncate">{{ property.name }}</h1>
+            <p class="text-sm text-slate-500 mt-1">
+                Cameras <span id="cam-count" class="font-semibold text-teal-600">0</span>
+            </p>
+        </div>
+
+        <div id="camera-list" class="flex-1 overflow-y-auto divide-y divide-gray-100"></div>
+
+        <div class="px-5 py-3 border-t border-gray-100">
+            <p class="text-xs text-slate-400 mb-3">Click on the map to add a camera.</p>
+            <a id="done-btn"
+               href="/properties/{{ property.id }}/upload"
+               class="block w-full text-center py-2.5 rounded-lg text-sm font-semibold transition
+                      bg-gray-200 text-gray-400 pointer-events-none">
+                Done &mdash; Start Uploading
+            </a>
+            <a href="/properties/{{ property.id }}/dashboard"
+               class="block w-full text-center py-2 rounded-lg text-sm font-medium text-teal-600 hover:bg-teal-50 transition mt-2">
+                View Dashboard &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div class="flex-1 relative">
+        <div id="camera-map" class="w-full h-full"></div>
+    </div>
+</div>
+
+<div id="toast" class="toast-msg"></div>
+
+<!-- Hidden file input for EXIF -->
+<input type="file" id="exif-file-input" accept="image/jpeg" class="hidden" />
+
+<script>
+(function() {
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    const PROPERTY_ID = {{ property.id }};
+    const boundaryGeoJSON = {{ property.boundary_geojson | safe if property.boundary_geojson else 'null' }};
+    let cameras = {{ cameras_json | safe }};
+    let markers = {};   // camera.id -> L.Marker
+    let activeExifCamId = null;
+
+    // -----------------------------------------------------------------------
+    // Map init
+    // -----------------------------------------------------------------------
+    const map = L.map('camera-map', { zoomControl: true });
+
+    L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { attribution: 'Esri', maxZoom: 19 }
+    ).addTo(map);
+
+    let boundaryLayer = null;
+    if (boundaryGeoJSON) {
+        boundaryLayer = L.geoJSON(JSON.parse(boundaryGeoJSON), {
+            style: { color: '#ffffff', weight: 2, fillOpacity: 0.05 }
+        }).addTo(map);
+        map.fitBounds(boundaryLayer.getBounds().pad(0.15));
+    } else {
+        map.setView([30.0, -96.0], 8);
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+    function nextLabel() {
+        const nums = cameras.map(c => {
+            const m = (c.camera_label || '').match(/CAM-(\d+)/);
+            return m ? parseInt(m[1], 10) : 0;
+        });
+        const next = nums.length ? Math.max(...nums) + 1 : 1;
+        return 'CAM-' + String(next).padStart(2, '0');
+    }
+
+    function placementClass(ctx) {
+        return 'placement-' + (ctx || 'other').toLowerCase().replace(' ', '_');
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    function updateDoneBtn() {
+        const btn = document.getElementById('done-btn');
+        if (cameras.length > 0) {
+            btn.classList.remove('bg-gray-200', 'text-gray-400', 'pointer-events-none');
+            btn.classList.add('bg-teal-600', 'text-white', 'hover:bg-teal-700');
+        } else {
+            btn.classList.add('bg-gray-200', 'text-gray-400', 'pointer-events-none');
+            btn.classList.remove('bg-teal-600', 'text-white', 'hover:bg-teal-700');
+        }
+        document.getElementById('cam-count').textContent = cameras.length;
+    }
+
+    // -----------------------------------------------------------------------
+    // Marker creation
+    // -----------------------------------------------------------------------
+    function makeIcon(label) {
+        return L.divIcon({
+            className: '',
+            html: '<div class="cam-marker">' + label + '</div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+        });
+    }
+
+    function addMarker(cam) {
+        const m = L.marker([cam.lat, cam.lon], {
+            icon: makeIcon(cam.camera_label),
+            draggable: true
+        }).addTo(map);
+
+        m.on('dragend', function() {
+            const pos = m.getLatLng();
+            fetch('/api/cameras/' + cam.id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lat: pos.lat, lon: pos.lng })
+            }).then(r => {
+                if (r.ok) {
+                    cam.lat = pos.lat;
+                    cam.lon = pos.lng;
+                    showToast('Saved');
+                }
+            });
+        });
+
+        markers[cam.id] = m;
+    }
+
+    // -----------------------------------------------------------------------
+    // Sidebar rendering
+    // -----------------------------------------------------------------------
+    function renderSidebar() {
+        const list = document.getElementById('camera-list');
+        list.innerHTML = '';
+        cameras.forEach(cam => {
+            const div = document.createElement('div');
+            div.className = 'px-5 py-3 flex items-center justify-between group hover:bg-gray-50';
+            div.id = 'cam-row-' + cam.id;
+            div.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-slate-700">${cam.camera_label}</span>
+                        <span class="placement-badge ${placementClass(cam.placement_context)}">${cam.placement_context || ''}</span>
+                    </div>
+                    <p class="text-xs text-slate-400 truncate mt-0.5">${cam.name || ''}</p>
+                </div>
+                <div class="flex items-center gap-1 ml-2">
+                    <button onclick="autoLocate(${cam.id})" title="Auto-locate from photo GPS"
+                        class="p-1.5 rounded hover:bg-gray-200 text-slate-400 hover:text-teal-600 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7z"/>
+                            <circle cx="12" cy="9" r="2.5"/>
+                        </svg>
+                    </button>
+                    <button onclick="deleteCam(${cam.id})" title="Delete camera"
+                        class="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+        updateDoneBtn();
+    }
+
+    // -----------------------------------------------------------------------
+    // Click-to-add popup
+    // -----------------------------------------------------------------------
+    map.on('click', function(e) {
+        const label = nextLabel();
+        const popupContent = `
+            <div style="min-width:220px">
+                <p class="text-xs font-semibold text-slate-500 mb-2">Add Camera</p>
+                <div class="mb-2">
+                    <label class="text-xs text-slate-500">Label</label>
+                    <input id="popup-label" value="${label}" readonly
+                        class="block w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"/>
+                </div>
+                <div class="mb-2">
+                    <label class="text-xs text-slate-500">Name</label>
+                    <input id="popup-name" placeholder="e.g. South Feeder"
+                        class="block w-full border border-gray-200 rounded px-2 py-1 text-sm"/>
+                </div>
+                <div class="mb-3">
+                    <label class="text-xs text-slate-500">Placement Context</label>
+                    <select id="popup-ctx"
+                        class="block w-full border border-gray-200 rounded px-2 py-1 text-sm">
+                        <option value="feeder">Feeder</option>
+                        <option value="trail">Trail</option>
+                        <option value="water">Water</option>
+                        <option value="food_plot">Food Plot</option>
+                        <option value="random">Random</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <p id="popup-error" class="text-xs text-red-500 mb-2 hidden"></p>
+                <button onclick="saveNewCamera(${e.latlng.lat}, ${e.latlng.lng})"
+                    class="w-full py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-sm font-semibold transition">
+                    Save Camera
+                </button>
+            </div>
+        `;
+        L.popup({ closeButton: true, maxWidth: 280 })
+            .setLatLng(e.latlng)
+            .setContent(popupContent)
+            .openOn(map);
+    });
+
+    // -----------------------------------------------------------------------
+    // CRUD operations (global scope for onclick handlers)
+    // -----------------------------------------------------------------------
+    window.saveNewCamera = function(lat, lng) {
+        const label = document.getElementById('popup-label').value;
+        const name = document.getElementById('popup-name').value;
+        const ctx = document.getElementById('popup-ctx').value;
+        const errEl = document.getElementById('popup-error');
+
+        fetch('/api/properties/' + PROPERTY_ID + '/cameras', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                camera_label: label,
+                name: name,
+                lat: lat,
+                lon: lng,
+                placement_context: ctx
+            })
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+        .then(({ ok, data }) => {
+            if (!ok) {
+                errEl.textContent = data.error || 'Failed to save';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            cameras.push(data);
+            addMarker(data);
+            renderSidebar();
+            map.closePopup();
+            showToast('Camera added');
+        })
+        .catch(() => {
+            errEl.textContent = 'Network error';
+            errEl.classList.remove('hidden');
+        });
+    };
+
+    window.deleteCam = function(camId) {
+        fetch('/api/cameras/' + camId, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) {
+                if (markers[camId]) { map.removeLayer(markers[camId]); delete markers[camId]; }
+                cameras = cameras.filter(c => c.id !== camId);
+                renderSidebar();
+                showToast('Camera removed');
+            }
+        });
+    };
+
+    // -----------------------------------------------------------------------
+    // EXIF GPS auto-locate
+    // -----------------------------------------------------------------------
+    window.autoLocate = function(camId) {
+        activeExifCamId = camId;
+        const input = document.getElementById('exif-file-input');
+        input.value = '';
+        input.click();
+    };
+
+    document.getElementById('exif-file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file || !activeExifCamId) return;
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const coords = extractGPS(ev.target.result);
+            if (!coords) {
+                showToast('No GPS data in this photo');
+                return;
+            }
+            const cam = cameras.find(c => c.id === activeExifCamId);
+            if (!cam) return;
+
+            fetch('/api/cameras/' + cam.id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lat: coords.lat, lon: coords.lon })
+            }).then(r => {
+                if (r.ok) {
+                    cam.lat = coords.lat;
+                    cam.lon = coords.lon;
+                    if (markers[cam.id]) {
+                        markers[cam.id].setLatLng([coords.lat, coords.lon]);
+                    }
+                    map.setView([coords.lat, coords.lon], 17);
+                    showToast('Location updated from photo');
+                }
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // Minimal EXIF GPS extractor (no external library)
+    function extractGPS(buffer) {
+        const view = new DataView(buffer);
+        if (view.getUint16(0) !== 0xFFD8) return null; // not JPEG
+
+        let offset = 2;
+        while (offset < view.byteLength - 1) {
+            const marker = view.getUint16(offset);
+            if (marker === 0xFFE1) { // APP1
+                return parseExifGPS(view, offset + 4);
+            }
+            if ((marker & 0xFF00) !== 0xFF00) break;
+            const segLen = view.getUint16(offset + 2);
+            offset += 2 + segLen;
+        }
+        return null;
+    }
+
+    function parseExifGPS(view, start) {
+        // Check "Exif\0\0"
+        if (view.getUint32(start) !== 0x45786966 || view.getUint16(start + 4) !== 0x0000) return null;
+
+        const tiffStart = start + 6;
+        const le = view.getUint16(tiffStart) === 0x4949; // little-endian?
+
+        function g16(o) { return le ? view.getUint16(o, true) : view.getUint16(o); }
+        function g32(o) { return le ? view.getUint32(o, true) : view.getUint32(o); }
+
+        // Walk IFD0 to find GPS IFD pointer (tag 0x8825)
+        let ifdOffset = tiffStart + g32(tiffStart + 4);
+        const numEntries = g16(ifdOffset);
+        let gpsIFDOffset = null;
+        for (let i = 0; i < numEntries; i++) {
+            const entryOff = ifdOffset + 2 + i * 12;
+            if (g16(entryOff) === 0x8825) {
+                gpsIFDOffset = tiffStart + g32(entryOff + 8);
+                break;
+            }
+        }
+        if (!gpsIFDOffset) return null;
+
+        // Parse GPS IFD
+        const gpsEntries = g16(gpsIFDOffset);
+        const gps = {};
+        for (let i = 0; i < gpsEntries; i++) {
+            const eOff = gpsIFDOffset + 2 + i * 12;
+            const tag = g16(eOff);
+            const type = g16(eOff + 2);
+            const valOff = tiffStart + g32(eOff + 8);
+            if (tag === 1) gps.latRef = String.fromCharCode(view.getUint8(eOff + 8));
+            else if (tag === 3) gps.lonRef = String.fromCharCode(view.getUint8(eOff + 8));
+            else if (tag === 2 && type === 5) gps.latVals = readRationals(valOff, 3);
+            else if (tag === 4 && type === 5) gps.lonVals = readRationals(valOff, 3);
+        }
+
+        function readRationals(off, count) {
+            const vals = [];
+            for (let i = 0; i < count; i++) {
+                const num = g32(off + i * 8);
+                const den = g32(off + i * 8 + 4);
+                vals.push(den ? num / den : 0);
+            }
+            return vals;
+        }
+
+        if (!gps.latVals || !gps.lonVals) return null;
+        let lat = gps.latVals[0] + gps.latVals[1] / 60 + gps.latVals[2] / 3600;
+        let lon = gps.lonVals[0] + gps.lonVals[1] / 60 + gps.lonVals[2] / 3600;
+        if (gps.latRef === 'S') lat = -lat;
+        if (gps.lonRef === 'W') lon = -lon;
+        return { lat, lon };
+    }
+
+    // -----------------------------------------------------------------------
+    // Init: load existing cameras
+    // -----------------------------------------------------------------------
+    cameras.forEach(addMarker);
+    renderSidebar();
+})();
+</script>
+{% endblock %}

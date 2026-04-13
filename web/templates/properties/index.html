@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}My Properties - {{ brand_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-700 dark:text-gray-100">My Properties</h1>
+        <p class="text-sm text-slate-500 dark:text-gray-400 mt-1">Manage your properties and camera deployments</p>
+    </div>
+    <a href="/properties/new"
+       class="inline-flex items-center px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add New Property
+    </a>
+</div>
+
+{% if property_cards %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for card in property_cards %}
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-5 hover:shadow-md transition bg-white dark:bg-gray-800">
+        <h3 class="text-lg font-semibold text-slate-700 dark:text-gray-100 mb-2">{{ card.property.name }}</h3>
+        <div class="space-y-1 text-sm text-slate-500 dark:text-gray-400 mb-4">
+            {% if card.property.county or card.property.state %}
+            <p>
+                {% if card.property.county %}{{ card.property.county }}, {% endif %}
+                {{ card.property.state or '' }}
+            </p>
+            {% endif %}
+            {% if card.property.acreage %}
+            <p>{{ "%.0f"|format(card.property.acreage) }} acres</p>
+            {% endif %}
+            <p>{{ card.camera_count }} camera{{ 's' if card.camera_count != 1 else '' }}</p>
+            {% if card.last_upload %}
+            <p class="text-xs text-slate-400">Last upload: {{ card.last_upload.uploaded_at.strftime('%b %d, %Y') }}</p>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/properties/{{ card.property.id }}/dashboard"
+               class="inline-flex items-center text-sm font-medium text-teal-600 hover:text-teal-700 transition">
+                Dashboard
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+            <a href="/properties/{{ card.property.id }}/cameras"
+               class="inline-flex items-center text-sm font-medium text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">
+                Cameras & Map
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <svg class="mx-auto w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+    </svg>
+    <h2 class="text-lg font-semibold text-slate-700 mb-1">No properties yet</h2>
+    <p class="text-sm text-slate-500 mb-6">Add your first property to get started.</p>
+    <a href="/properties/new"
+       class="inline-flex items-center px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add New Property
+    </a>
+</div>
+{% endif %}
+{% endblock %}

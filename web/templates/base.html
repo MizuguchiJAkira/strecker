@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ brand_name }}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        teal: { 600: '#0D7377', 700: '#0A5C5F' },
+                        slate: { 700: '#1A1A1A', 500: '#5A6B7F' },
+                        gray: {
+                            50:  '#FAF8F5',
+                            100: '#F0EDE8',
+                            200: '#E0DCD5',
+                            300: '#C5C0B8',
+                            400: '#A39E95',
+                            500: '#82796F',
+                            600: '#635C54',
+                            700: '#3D3A35',
+                            800: '#2A2724',
+                            900: '#1B1917',
+                            950: '#131210',
+                        },
+                    },
+                    fontFamily: {
+                        serif: ['"Libre Baskerville"', 'Georgia', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <script>
+        // Apply dark mode before paint to avoid flash
+        // Skip dark mode if ?embed=1 is present (for home page previews)
+        if (localStorage.getItem('darkMode') === 'true' && !window.location.search.includes('embed=1')) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+    <style>
+        body { font-family: 'Libre Baskerville', Georgia, serif; }
+        {% if request.args.get('embed') == '1' %}
+        body { background: #f8f7f5 !important; }
+        {% endif %}
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+    <!-- Header -->
+    {% if request.args.get('embed') != '1' %}
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 relative z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="/" class="text-xl font-bold text-teal-600 tracking-tight">
+                {{ brand_name }}
+            </a>
+
+            <!-- Desktop nav -->
+            <nav class="hidden md:flex items-center gap-6 text-sm">
+                {% if current_user.is_authenticated %}
+                    {% if is_basal_site %}
+                    <a href="/owner/coverage" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">Coverage Map</a>
+                    <a href="/demo" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">Enterprise Demo</a>
+                    {% else %}
+                    <a href="/properties" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">My Properties</a>
+                    {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">Logout</a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">Login</a>
+                <a href="{{ url_for('auth.register') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition">Register</a>
+                {% endif %}
+                <button id="dark-toggle" onclick="toggleDarkMode()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Toggle dark mode">
+                    <svg id="icon-sun" class="w-5 h-5 text-slate-500 dark:text-gray-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="icon-moon" class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </button>
+            </nav>
+
+            <!-- Mobile: dark toggle + hamburger -->
+            <div class="flex md:hidden items-center gap-2">
+                <button onclick="toggleDarkMode()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Toggle dark mode">
+                    <svg id="icon-sun-m" class="w-5 h-5 text-slate-500 dark:text-gray-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="icon-moon-m" class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </button>
+                <button id="mobile-menu-btn" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Menu">
+                    <svg class="w-6 h-6 text-slate-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile dropdown -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div class="px-6 py-3 flex flex-col gap-3 text-sm">
+                {% if current_user.is_authenticated %}
+                    {% if is_basal_site %}
+                    <a href="/owner/coverage" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">Coverage Map</a>
+                    <a href="/demo" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">Enterprise Demo</a>
+                    {% else %}
+                    <a href="/properties" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">My Properties</a>
+                    {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">Logout</a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">Login</a>
+                <a href="{{ url_for('auth.register') }}" class="text-slate-500 dark:text-gray-400 hover:text-teal-600 transition py-1">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <!-- Content -->
+    <main class="flex-1 {% if request.args.get('embed') != '1' %}max-w-6xl mx-auto px-6 py-8{% else %}px-4 py-2{% endif %} w-full">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    {% if request.args.get('embed') != '1' %}
+    <footer class="border-t border-gray-200 dark:border-gray-700 py-6">
+        <div class="max-w-6xl mx-auto px-6 text-center text-xs text-slate-500 dark:text-gray-500">
+            {{ brand_name }} &mdash; {{ brand_tagline }}
+            &nbsp;|&nbsp; {{ brand_domain }}
+        </div>
+    </footer>
+    {% endif %}
+    <script>
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', isDark);
+            updateDarkIcons();
+        }
+        function updateDarkIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('icon-sun')?.classList.toggle('hidden', !isDark);
+            document.getElementById('icon-moon')?.classList.toggle('hidden', isDark);
+            document.getElementById('icon-sun-m')?.classList.toggle('hidden', !isDark);
+            document.getElementById('icon-moon-m')?.classList.toggle('hidden', isDark);
+        }
+        updateDarkIcons();
+    </script>
+</body>
+</html>

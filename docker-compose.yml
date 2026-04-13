@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: basal-postgis
+    environment:
+      POSTGRES_DB: ${DB_NAME:-basal}
+      POSTGRES_USER: ${DB_USER:-basal}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-basal_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-basal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: basal-informatics:latest
+    container_name: basal-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-basal}
+      DB_USER: ${DB_USER:-basal}
+      DB_PASSWORD: ${DB_PASSWORD:-basal_dev}
+    volumes:
+      - .:/app
+    working_dir: /app
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:
