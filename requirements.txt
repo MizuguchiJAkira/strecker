@@ -25,7 +25,10 @@ pandas>=2.1
 numpy>=1.26
 
 # Detection / ML
-speciesnet>=5.0
+# NOTE: speciesnet pulls in torch (~2GB) and blows the DO App Platform build VM.
+# Imports in strecker/detect.py and strecker/reid.py are lazy, so the app runs
+# fine in DEMO_MODE without these. Install manually on workers that actually
+# run detection:  pip install speciesnet>=5.0
 Pillow>=9.0
 
 # Production server
