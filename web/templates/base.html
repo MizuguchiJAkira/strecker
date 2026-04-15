@@ -49,6 +49,32 @@
         {% if request.args.get('embed') == '1' %}
         body { background: #f8f7f5 !important; }
         {% endif %}
+
+        /* Form inputs: readable text in both light and dark modes.
+           Without these, inputs inherit body text color and become
+           unreadable against white backgrounds when the page is dark. */
+        input[type="text"], input[type="email"], input[type="password"],
+        input[type="number"], input[type="search"], input[type="url"],
+        input[type="tel"], input[type="date"], textarea, select {
+            color: #1A1A1A;
+            background-color: #FFFFFF;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #82796F;
+            opacity: 1;
+        }
+        html.dark input[type="text"], html.dark input[type="email"],
+        html.dark input[type="password"], html.dark input[type="number"],
+        html.dark input[type="search"], html.dark input[type="url"],
+        html.dark input[type="tel"], html.dark input[type="date"],
+        html.dark textarea, html.dark select {
+            color: #F0EDE8;
+            background-color: #2A2724;
+            border-color: #3D3A35;
+        }
+        html.dark input::placeholder, html.dark textarea::placeholder {
+            color: #A39E95;
+        }
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">

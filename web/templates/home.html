@@ -92,7 +92,7 @@
 <!-- Trail Cam Hero Video -->
 <section class="hero-video" id="hero-video">
     <video autoplay muted loop playsinline preload="auto"
-           poster="/photos/white_tailed_deer/CAM-F02_20260131_235114_00.jpg"
+           poster="{{ url_for('static', filename='marketing/hero-poster.jpg') }}"
            src="{{ url_for('static', filename='hero-trailcam.webm') }}">
     </video>
 
@@ -172,8 +172,10 @@
                 <a href="/properties/1/cameras" class="text-teal-600 text-sm font-semibold hover:underline">See camera setup &rarr;</a>
             </div>
             <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
-                <div class="demo-frame" data-scroll-y="0">
-                    <iframe src="/properties/1/cameras" loading="lazy" tabindex="-1"></iframe>
+                <div class="demo-frame">
+                    <img src="{{ url_for('static', filename='marketing/preview-cameras.png') }}"
+                         alt="Camera station setup on a satellite map with placement-context tags"
+                         loading="lazy">
                 </div>
             </div>
         </div>
