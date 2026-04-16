@@ -29,7 +29,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import ephem
+try:
+    import ephem  # lunar-illumination chart; optional dep
+except ImportError:
+    ephem = None
 import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend
 import matplotlib.pyplot as plt
@@ -262,9 +265,11 @@ def _make_moon_chart(detections: List[Detection],
                 night_date = (det.timestamp - timedelta(days=1)).date()
             nightly_events[night_date].add(det.independent_event_id)
 
-    if not nightly_events:
+    if not nightly_events or ephem is None:
         fig, ax = plt.subplots(figsize=(6, 3))
-        ax.text(0.5, 0.5, "Insufficient nocturnal data",
+        msg = ("Insufficient nocturnal data" if not nightly_events
+               else "Moon chart skipped (ephem not installed)")
+        ax.text(0.5, 0.5, msg,
                 ha="center", va="center", transform=ax.transAxes)
         fig.tight_layout()
         return _chart_to_image(fig)

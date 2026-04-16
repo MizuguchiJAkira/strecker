@@ -79,36 +79,46 @@ def _make_app():
 
 
 def _claim_next_job(db, ProcessingJob):
-    """Atomically claim the oldest queued job. Returns job_id or None."""
-    # Postgres path: row-level lock with SKIP LOCKED.
-    dialect = db.engine.dialect.name
-    if dialect == "postgresql":
-        from sqlalchemy import text
-        sql = text("""
-            SELECT id FROM processing_jobs
-            WHERE status = 'queued'
-            ORDER BY submitted_at ASC
-            LIMIT 1
-            FOR UPDATE SKIP LOCKED
-        """)
-        row = db.session.execute(sql).first()
-        if not row:
-            return None
-        pj = db.session.get(ProcessingJob, row[0])
-    else:
-        # SQLite / other: single-writer assumption
-        pj = (ProcessingJob.query
-              .filter_by(status="queued")
-              .order_by(ProcessingJob.submitted_at.asc())
-              .first())
-        if not pj:
-            return None
+    """Atomically claim the oldest queued job. Returns job_id or None.
 
-    pj.status = "processing"
-    pj.worker_id = WORKER_ID
-    pj.claimed_at = datetime.utcnow()
-    db.session.commit()
-    return pj.job_id
+    CRITICAL: every code path must end with commit() or rollback().
+    On Postgres, the SELECT FOR UPDATE opens an implicit transaction;
+    returning None without rollback leaves the connection "idle in
+    transaction" forever, exhausting the connection pool over hours.
+    """
+    dialect = db.engine.dialect.name
+    try:
+        if dialect == "postgresql":
+            from sqlalchemy import text
+            sql = text("""
+                SELECT id FROM processing_jobs
+                WHERE status = 'queued'
+                ORDER BY submitted_at ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            """)
+            row = db.session.execute(sql).first()
+            if not row:
+                db.session.rollback()  # release the implicit txn
+                return None
+            pj = db.session.get(ProcessingJob, row[0])
+        else:
+            # SQLite / other: single-writer assumption
+            pj = (ProcessingJob.query
+                  .filter_by(status="queued")
+                  .order_by(ProcessingJob.submitted_at.asc())
+                  .first())
+            if not pj:
+                return None
+
+        pj.status = "processing"
+        pj.worker_id = WORKER_ID
+        pj.claimed_at = datetime.utcnow()
+        db.session.commit()
+        return pj.job_id
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def _reclaim_stale(db, ProcessingJob):
