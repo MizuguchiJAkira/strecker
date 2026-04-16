@@ -25,7 +25,7 @@ EXPOSE 5000
 
 # Default: Strecker site (use SITE env var to switch)
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", \
-     "--workers", "1", \
+     "--workers", "2", \
      "--timeout", "60", \
-     "--max-requests", "200", "--max-requests-jitter", "20", \
+     "--max-requests", "300", "--max-requests-jitter", "30", \
      "wsgi:app"]
