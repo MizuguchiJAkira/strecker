@@ -1,5 +1,14 @@
 # Session Log — 2026-04-16 evening / 2026-04-17 morning
 
+## Reading order for first look
+
+1. This file (status snapshot + decisions log)
+2. `docs/DEMO_NARRATIVE.md` (the 90-second YC pitch — needs your voice)
+3. `docs/METHODOLOGY.md` (artifact for actuarial/lender audiences)
+4. `docs/ROADMAP.md` (4-week plan with day-by-day tasks)
+5. The live dashboard: <https://monkfish-app-ju2lv.ondigitalocean.app/properties/1/dashboard>
+   (login: jonahakiracheng@gmail.com / PilotSmoke-d4e5ab)
+
 ## Bottom line
 
 **Strecker has a defensible YC-demo dashboard** showing per-species REM
@@ -24,15 +33,31 @@ follow-on survey when we can't.
 
 ## What landed tonight
 
+Full git log of the session, oldest first:
+
 ```
-07487ac feat: render REM population estimates section in dashboard UI
-1df074f feat: REM density estimator + dashboard population endpoint
-b2ad7b8 fix: optional ephem + worker idle-in-transaction leak
-1ddceef fix: reduce gunicorn workers + add max-requests to bound DB conn pool
-8f51dac fix: cap boto3 timeouts so Spaces misconfig fails fast, not at 5 min
-e34e663 fix: speed up and serialize web boot to pass health check
 37a03f5 feat: property-scoped uploads via worker queue + dashboard aggregation
+e34e663 fix: speed up and serialize web boot to pass health check
+8f51dac fix: cap boto3 timeouts so Spaces misconfig fails fast, not at 5 min
+b9fbaa2 chore: force redeploy to cycle containers
+1ddceef fix: reduce gunicorn workers + add max-requests to bound DB conn pool
+b2ad7b8 fix: optional ephem + worker idle-in-transaction leak
+1df074f feat: REM density estimator + dashboard population endpoint
+07487ac feat: render REM population estimates section in dashboard UI
+cf0d3e3 docs: session log for 2026-04-16 evening
+2287808 fix(rem): truncate v perturbation to +/-50% to keep CI bounds believable
+623864a docs: methodology one-pager for actuarial / lender audience
+e95d5a4 docs: 90-second YC demo narrative + script + Q&A + checklists
+7571bf1 polish(map): add tooltip + title to camera markers
+d3a87b1 docs: 4-week roadmap to YC demo
+abe8255 fix: include population + photo gallery sections in empty-state hide
+a3d3fdf perf: gunicorn back to 2 workers for concurrent-user handling
 ```
+
+That's 16 commits across infrastructure (4), feature work (3), bug fixes (5),
+docs (4). Plus tonight's seed of demo data via the worker Droplet's
+`/opt/demo-seed/` scripts (not in repo; idempotent re-seed via
+`docker exec strecker-worker python3 /tmp/seed_dashboard.py`).
 
 Plus an out-of-tree change: bumped DO App Platform health-check window
 (initial_delay 10→30s, period 10→15s, threshold 9→30; path /login→/health)
@@ -151,5 +176,23 @@ Same temp credentials as last session:
 - Password: PilotSmoke-d4e5ab
 
 Change via the UI or ask me to reset.
+
+## Operating notes you might want
+
+If you want me to keep iterating overnight on subsequent nights, the
+patterns that worked tonight:
+
+- **Batch commits aggressively before pushing** — each push = one App
+  Platform deploy (~3-4 min). Tonight I pushed too many small commits;
+  could have grouped 2-3.
+- **Don't trigger production uploads to test the broken route.** The
+  cascade of failures from the Spaces hang ate ~90 minutes. Use the
+  worker-side enqueue script (`enqueue.py` on the Droplet) when I need
+  to validate the worker pipeline; reserve the web upload route for
+  after the pre-signed-URL refactor.
+- **Always ssh into the Droplet via `docker exec strecker-worker`** for
+  DB queries — host doesn't have psql, container has psycopg2.
+- **Health check window is now 5 min** — gives boots room to do
+  migrations + advisory-lock dance without tripping. Don't tighten.
 
 — Claude
