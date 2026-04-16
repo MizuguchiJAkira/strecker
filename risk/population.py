@@ -125,6 +125,15 @@ def _bootstrap_density(efforts: Sequence[CameraSurveyEffort],
 
     samples: List[float] = []
     cams = list(efforts)
+    # Truncate v perturbation to ±50% of point estimate. The published v_sd
+    # captures inter-individual / inter-region variation, not within-survey
+    # uncertainty; allowing v_sample to drop near 0 inflates the upper CI
+    # tail by 10x+ without methodological warrant. This keeps the bootstrap
+    # CI primarily reflective of camera-sampling variability (the design's
+    # actual stochastic source) while still propagating reasonable v
+    # uncertainty.
+    v_min = 0.5 * v_km_day
+    v_max = 1.5 * v_km_day
     for _ in range(n):
         # Resample cameras with replacement (the standard REM approach).
         boot = [cams[rng.randrange(len(cams))] for _ in range(len(cams))]
@@ -133,8 +142,11 @@ def _bootstrap_density(efforts: Sequence[CameraSurveyEffort],
         if boot_days <= 0:
             continue
         rate = boot_dets / boot_days
-        # Perturb v parametrically; clamp to >= 0.1 km/day to avoid div-by-0.
-        v_sample = max(0.1, rng.gauss(v_km_day, v_sd)) if v_sd > 0 else v_km_day
+        if v_sd > 0:
+            v_sample = rng.gauss(v_km_day, v_sd)
+            v_sample = max(v_min, min(v_max, v_sample))
+        else:
+            v_sample = v_km_day
         try:
             samples.append(_rem_density(rate, v_sample, r_km, theta_rad))
         except ValueError:
