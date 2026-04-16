@@ -131,6 +131,172 @@ def _reclaim_stale(db, ProcessingJob):
         db.session.commit()
 
 
+def _quarter_for(ts: datetime):
+    """Return (quarter_index 0..3, start_date, end_date, label) for a timestamp."""
+    from datetime import date
+    q = (ts.month - 1) // 3
+    start = date(ts.year, q * 3 + 1, 1)
+    if q == 3:
+        end = date(ts.year, 12, 31)
+    else:
+        end = date(ts.year, (q + 1) * 3 + 1, 1) - timedelta(days=1)
+    label = ["Spring", "Summer", "Fall", "Winter"][q] + f" {ts.year}"
+    return q, start, end, label
+
+
+def _aggregate_to_property(db, pj, detections):
+    """Per-property aggregation: auto-create Cameras, derive Seasons from
+    photo timestamps, upsert DetectionSummary rows.
+
+    Cameras: top-level folder of the ZIP → camera_label (via det.camera_id
+    which strecker.ingest already derives).
+    Seasons: one quarterly season per (property, year-quarter) of detections.
+    DetectionSummary: (season_id, camera_id, species_key) is unique; sum.
+    """
+    import json as _json
+    from db.models import Camera, Season, Upload, DetectionSummary
+
+    if not detections:
+        return
+
+    # 1. Auto-create cameras keyed on camera_label
+    labels = {d.camera_id for d in detections if d.camera_id}
+    existing_cams = {
+        c.camera_label: c
+        for c in Camera.query.filter_by(property_id=pj.property_id).all()
+    }
+    for label in labels:
+        if label not in existing_cams:
+            cam = Camera(
+                property_id=pj.property_id,
+                camera_label=label[:50],
+                name=label[:120],
+                is_active=True,
+            )
+            db.session.add(cam)
+            existing_cams[label] = cam
+    db.session.flush()  # populate cam.id
+
+    # 2. Auto-create seasons keyed on (year, quarter)
+    # Bucket detections by quarter
+    by_quarter = defaultdict(list)
+    for d in detections:
+        q_key = (d.timestamp.year, (d.timestamp.month - 1) // 3)
+        by_quarter[q_key].append(d)
+
+    seasons = {}  # q_key -> Season
+    for q_key, dets in by_quarter.items():
+        _q, start, end, label = _quarter_for(dets[0].timestamp)
+        season = (Season.query
+                  .filter_by(property_id=pj.property_id, name=label)
+                  .first())
+        if not season:
+            season = Season(
+                property_id=pj.property_id,
+                name=label,
+                start_date=start,
+                end_date=end,
+            )
+            db.session.add(season)
+            db.session.flush()
+        seasons[q_key] = season
+
+    # 3. Aggregate into per-(season, camera, species) buckets
+    agg = defaultdict(lambda: {
+        "photos": 0,
+        "events": set(),
+        "confidences": [],
+        "first_seen": None,
+        "last_seen": None,
+        "buck": 0,
+        "doe": 0,
+        "hourly": [0] * 24,
+    })
+    for d in detections:
+        if not d.camera_id:
+            continue
+        cam = existing_cams.get(d.camera_id)
+        if not cam:
+            continue
+        q_key = (d.timestamp.year, (d.timestamp.month - 1) // 3)
+        season = seasons[q_key]
+        key = (season.id, cam.id, d.species_key)
+        a = agg[key]
+        a["photos"] += 1
+        if d.independent_event_id:
+            a["events"].add(d.independent_event_id)
+        conf = d.confidence_calibrated if d.confidence_calibrated is not None else d.confidence
+        a["confidences"].append(conf)
+        ts = d.timestamp
+        if a["first_seen"] is None or ts < a["first_seen"]:
+            a["first_seen"] = ts
+        if a["last_seen"] is None or ts > a["last_seen"]:
+            a["last_seen"] = ts
+        if d.antler_classification == "buck":
+            a["buck"] += 1
+        elif d.antler_classification == "doe":
+            a["doe"] += 1
+        a["hourly"][ts.hour] += 1
+
+    # 4. Upsert DetectionSummary rows
+    for (season_id, camera_id, species_key), a in agg.items():
+        hourly = a["hourly"]
+        peak_hour = hourly.index(max(hourly)) if max(hourly) > 0 else None
+        avg_conf = (round(sum(a["confidences"]) / len(a["confidences"]), 4)
+                    if a["confidences"] else None)
+        existing = DetectionSummary.query.filter_by(
+            season_id=season_id, camera_id=camera_id, species_key=species_key,
+        ).first()
+        if existing:
+            existing.total_photos = (existing.total_photos or 0) + a["photos"]
+            existing.independent_events = (
+                (existing.independent_events or 0) + len(a["events"]))
+            if avg_conf is not None:
+                existing.avg_confidence = avg_conf
+            if a["first_seen"] and (not existing.first_seen
+                                    or a["first_seen"] < existing.first_seen):
+                existing.first_seen = a["first_seen"]
+            if a["last_seen"] and (not existing.last_seen
+                                   or a["last_seen"] > existing.last_seen):
+                existing.last_seen = a["last_seen"]
+            existing.buck_count = (existing.buck_count or 0) + a["buck"]
+            existing.doe_count = (existing.doe_count or 0) + a["doe"]
+            existing.peak_hour = peak_hour
+            existing.hourly_distribution = _json.dumps(hourly)
+        else:
+            db.session.add(DetectionSummary(
+                season_id=season_id,
+                camera_id=camera_id,
+                species_key=species_key,
+                total_photos=a["photos"],
+                independent_events=len(a["events"]),
+                avg_confidence=avg_conf,
+                first_seen=a["first_seen"],
+                last_seen=a["last_seen"],
+                buck_count=a["buck"],
+                doe_count=a["doe"],
+                peak_hour=peak_hour,
+                hourly_distribution=_json.dumps(hourly),
+            ))
+
+    # 5. Mark the Upload complete
+    if pj.upload_id:
+        up = Upload.query.get(pj.upload_id)
+        if up:
+            up.status = "complete"
+            up.photo_count = len(detections)
+            up.processed_at = datetime.utcnow()
+            # Link to the season with the most detections (primary season)
+            if seasons:
+                primary_q = max(by_quarter.items(), key=lambda kv: len(kv[1]))[0]
+                up.season_id = seasons[primary_q].id
+
+    db.session.commit()
+    logger.info("Job %s aggregated to property %s: %d cameras, %d seasons, %d summaries",
+                pj.job_id, pj.property_id, len(existing_cams),
+                len(seasons), len(agg))
+
+
 def _process_job(db, ProcessingJob, job_id: str):
     """Run the full Strecker pipeline for one claimed job."""
     from strecker.ingest import ingest
@@ -223,6 +389,24 @@ def _process_job(db, ProcessingJob, job_id: str):
         logger.info("Job %s complete: %d detections, %d species, %d events",
                     job_id, len(detections), len(species_list), n_events)
 
+        # ── 7b. Property-scoped aggregation (dashboard data) ──
+        if pj.property_id:
+            try:
+                _aggregate_to_property(db, pj, detections)
+            except Exception:
+                logger.exception(
+                    "Job %s: pipeline OK but aggregation failed", job_id)
+                db.session.rollback()
+                # Don't fail the whole job — the PDF is still valid. Mark the
+                # linked Upload (if any) as errored so the UI surfaces it.
+                if pj.upload_id:
+                    from db.models import Upload
+                    up = Upload.query.get(pj.upload_id)
+                    if up:
+                        up.status = "error"
+                        up.error_message = "Aggregation failed; see worker logs"
+                        db.session.commit()
+
         # ── 8. Delete the uploaded ZIP to save on storage ──
         storage.delete_file(pj.zip_key)
 
@@ -231,6 +415,16 @@ def _process_job(db, ProcessingJob, job_id: str):
         pj.status = "error"
         pj.error_message = f"{type(e).__name__}: {e}\n\n{traceback.format_exc()[-2000:]}"
         pj.completed_at = datetime.utcnow()
+        # Mirror failure onto the linked Upload
+        if pj.upload_id:
+            try:
+                from db.models import Upload
+                up = Upload.query.get(pj.upload_id)
+                if up:
+                    up.status = "error"
+                    up.error_message = str(e)[:500]
+            except Exception:
+                pass
         db.session.commit()
 
     finally:

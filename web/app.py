@@ -460,14 +460,19 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
     with app.app_context():
         db.create_all()
 
-        # Add is_owner column if missing (SQLite doesn't support ALTER via create_all)
-        try:
-            db.session.execute(db.text(
-                "ALTER TABLE users ADD COLUMN is_owner BOOLEAN DEFAULT 0"
-            ))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()  # column already exists
+        # Additive column migrations — each wrapped so pre-existing columns
+        # don't abort the boot. Works on SQLite and Postgres.
+        _additive_migrations = [
+            "ALTER TABLE users ADD COLUMN is_owner BOOLEAN DEFAULT 0",
+            "ALTER TABLE processing_jobs ADD COLUMN property_id INTEGER",
+            "ALTER TABLE processing_jobs ADD COLUMN upload_id INTEGER",
+        ]
+        for stmt in _additive_migrations:
+            try:
+                db.session.execute(db.text(stmt))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()  # column already exists
 
         # Seed demo accounts and data
         if demo:

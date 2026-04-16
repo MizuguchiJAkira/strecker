@@ -281,6 +281,13 @@ class ProcessingJob(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.String(8), unique=True, nullable=False, index=True)
+    # Property-scoped link (nullable — pre-property-scoping jobs have neither).
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=True, index=True
+    )
+    upload_id = db.Column(
+        db.Integer, db.ForeignKey("uploads.id"), nullable=True, index=True
+    )
     property_name = db.Column(db.String(200))
     state = db.Column(db.String(2))
     status = db.Column(db.String(20), default="queued", index=True)  # queued/processing/classifying/reporting/complete/error
