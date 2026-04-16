@@ -169,6 +169,27 @@
     </div>
 </div>
 
+<!-- Population Estimates (REM density per species) -->
+<div class="mb-8" id="population-section">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="section-title mb-0">Population Estimates</h2>
+        <button id="population-method-btn" onclick="document.getElementById('population-method-panel').classList.toggle('hidden')"
+                class="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline">
+            Methodology
+        </button>
+    </div>
+    <p class="text-sm text-slate-500 dark:text-gray-400 mb-3">
+        Density per species via the Random Encounter Model (Rowcliffe et al. 2008),
+        with bootstrap 95% CIs and a recommendation flag for survey planning.
+    </p>
+    <div id="population-method-panel" class="hidden mb-4 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
+        <div id="population-method-body">Loading methodology...</div>
+    </div>
+    <div id="population-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="text-sm text-gray-400 col-span-full text-center py-8">Loading density estimates...</div>
+    </div>
+</div>
+
 <!-- Species Cards -->
 <div class="mb-8">
     <div class="flex items-center justify-between mb-4">
@@ -469,12 +490,13 @@ Chart.Tooltip.positioners.belowChart = function(elements, eventPosition) {
     async function loadDashboard() {
         if (!currentSeasonId) { showEmpty(); return; }
         const qs = `?season_id=${currentSeasonId}`;
-        const [summary, activity, cameras, mapData, coverage] = await Promise.all([
+        const [summary, activity, cameras, mapData, coverage, population] = await Promise.all([
             fetch(`/api/properties/${PID}/dashboard/summary${qs}`).then(r => r.json()),
             fetch(`/api/properties/${PID}/dashboard/activity${qs}`).then(r => r.json()),
             fetch(`/api/properties/${PID}/dashboard/cameras${qs}`).then(r => r.json()),
             fetch(`/api/properties/${PID}/dashboard/map-data${qs}`).then(r => r.json()),
             fetch(`/api/properties/${PID}/dashboard/coverage${qs}`).then(r => r.json()),
+            fetch(`/api/properties/${PID}/dashboard/population${qs}`).then(r => r.json()),
         ]);
 
         if (!summary.species || !summary.species.length) { showEmpty(); return; }
@@ -482,6 +504,7 @@ Chart.Tooltip.positioners.belowChart = function(elements, eventPosition) {
 
         renderKPIs(summary);
         renderCoverage(coverage);
+        renderPopulation(population);
         renderSpeciesCards(summary.species, activity);
         renderBuckDoe(summary.species);
         renderActivityChart(activity);
@@ -589,6 +612,119 @@ Chart.Tooltip.positioners.belowChart = function(elements, eventPosition) {
     }
 
     // ── Species Cards ──
+    // ── Population (REM density) ──
+    function renderPopulation(data) {
+        const grid = document.getElementById('population-grid');
+        const methodPanel = document.getElementById('population-method-body');
+        if (!data || !data.estimates || !data.estimates.length) {
+            grid.innerHTML = '<div class="text-sm text-gray-400 col-span-full text-center py-8">No detection data for density estimation.</div>';
+            return;
+        }
+
+        // Methodology panel
+        if (methodPanel && data.method) {
+            methodPanel.innerHTML = `
+                <div class="font-semibold text-slate-700 dark:text-gray-200 mb-2">${data.method.estimator}</div>
+                <div class="space-y-1">
+                    <div><span class="font-medium">CI:</span> ${data.method.ci}</div>
+                    <div><span class="font-medium">Camera detection radius:</span> ${data.method.camera_radius_m} m &nbsp;
+                         <span class="font-medium">Detection angle:</span> ${data.method.camera_angle_rad} rad</div>
+                    <div><span class="font-medium">Survey period:</span> ${data.season.days} days</div>
+                </div>
+                <div class="mt-3 italic text-slate-500 dark:text-gray-400">
+                    REM estimates density from camera-trap rates without requiring individual ID.
+                    Cameras at non-random placements (feeders, trails, water) violate the movement-independence
+                    assumption; placement-context inverse propensity weighting corrects for residual bias.
+                </div>
+            `;
+        }
+
+        // Find the max CI-high across all estimates so we can scale bars
+        const maxHigh = Math.max(
+            ...data.estimates.filter(e => e.density_ci_high != null).map(e => e.density_ci_high),
+            0.1,
+        );
+
+        const recBadge = (rec) => {
+            if (rec === 'sufficient_for_decision')
+                return ['Sufficient for decision', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'];
+            if (rec === 'recommend_supplementary_survey')
+                return ['Recommend further survey', 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'];
+            return ['Insufficient data', 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'];
+        };
+
+        grid.innerHTML = data.estimates.map((e, idx) => {
+            const [recLabel, recCls] = recBadge(e.recommendation);
+            const hasDensity = e.density_animals_per_km2 != null;
+            // CI ribbon: positions on a [0, maxHigh] scale (linear).
+            let bar = '';
+            if (hasDensity && e.density_ci_high != null && e.density_ci_low != null) {
+                const lo = (e.density_ci_low / maxHigh) * 100;
+                const hi = (e.density_ci_high / maxHigh) * 100;
+                const mid = (e.density_animals_per_km2 / maxHigh) * 100;
+                bar = `
+                    <div class="relative h-3 mt-2 mb-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="absolute h-full bg-teal-200 dark:bg-teal-700" style="left:${lo}%;width:${hi-lo}%"></div>
+                        <div class="absolute h-full w-[2px] bg-teal-700 dark:bg-teal-300" style="left:${mid}%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-400 dark:text-gray-500">
+                        <span>${e.density_ci_low.toFixed(2)}</span>
+                        <span class="font-medium text-slate-600 dark:text-gray-400">95% CI</span>
+                        <span>${e.density_ci_high.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+            const density = hasDensity
+                ? `<div class="text-3xl font-extrabold text-teal-600 dark:text-teal-400 leading-tight">
+                       ${e.density_animals_per_km2.toFixed(2)}
+                       <span class="text-sm font-medium text-slate-400 dark:text-gray-500">animals/km²</span>
+                   </div>`
+                : `<div class="text-base font-semibold text-slate-500 dark:text-gray-400">
+                       Density not computed
+                   </div>
+                   <div class="text-xs text-slate-400 dark:text-gray-500">
+                       Detection rate: ${(e.detection_rate_per_camera_day ?? 0).toFixed(3)} events/cam-day
+                   </div>`;
+
+            const caveatList = (e.caveats || []).map(c =>
+                `<li class="text-[11px] text-slate-500 dark:text-gray-400 leading-snug">${c}</li>`
+            ).join('');
+
+            return `
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 flex flex-col">
+                <div class="flex items-start justify-between gap-3 mb-2">
+                    <h3 class="font-bold text-slate-800 dark:text-gray-100">${e.common_name}</h3>
+                    <span class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${recCls}">${recLabel}</span>
+                </div>
+                ${density}
+                ${bar}
+                <div class="grid grid-cols-3 gap-2 mt-3 text-[11px]">
+                    <div>
+                        <div class="text-slate-400 dark:text-gray-500">cameras</div>
+                        <div class="font-semibold text-slate-700 dark:text-gray-200">${e.n_cameras}</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 dark:text-gray-500">cam-days</div>
+                        <div class="font-semibold text-slate-700 dark:text-gray-200">${Math.round(e.total_camera_days)}</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 dark:text-gray-500">events</div>
+                        <div class="font-semibold text-slate-700 dark:text-gray-200">${e.total_detections}</div>
+                    </div>
+                </div>
+                ${caveatList ? `
+                    <details class="mt-3 group">
+                        <summary class="cursor-pointer text-[11px] font-medium text-teal-600 dark:text-teal-400 hover:underline">
+                            ${e.caveats.length} caveat${e.caveats.length === 1 ? '' : 's'}
+                        </summary>
+                        <ul class="mt-2 space-y-1 list-disc list-inside">${caveatList}</ul>
+                    </details>
+                ` : ''}
+            </div>
+            `;
+        }).join('');
+    }
+
     // ── Species card state ──
     window._speciesData = [];
     window._activityDataCache = [];
