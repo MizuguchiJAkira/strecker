@@ -371,8 +371,15 @@ def export_events_appendix(detections: List[Detection],
             "antler_classification": det.antler_classification or "",
         })
 
+    # Empty-input guard: a probe upload with no valid detections lands
+    # here with rows=[]. Write a header-only CSV so callers don't crash
+    # on IndexError and downstream aggregation still runs.
+    fieldnames = list(rows[0].keys()) if rows else [
+        "species_key", "timestamp", "camera_id", "independent_event_id",
+        "burst_group_id", "antler_classification",
+    ]
     with open(output_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
