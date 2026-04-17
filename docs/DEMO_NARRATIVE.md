@@ -56,15 +56,18 @@ camera map.]*
 
 ### Beat 4 — The moat (~15s)
 
-> Hunters get a dashboard. Basal Informatics — our enterprise tier —
-> gets a primary-source ecological dataset published into the TNFD
-> nature-risk ontology. Camera-day granularity, audit-traceable, with
-> the methodology a reinsurer's actuary can verify.
+> Hunters get a dashboard — free for the first three cameras, $29 per
+> property per month above that. Basal Informatics — our enterprise
+> tier — charges reinsurers $1,500 per parcel-verification. Camera-day
+> granularity, audit-traceable, with the methodology a reinsurer's
+> actuary can verify. Today the alternative is a $40K one-shot field
+> survey; we're 25x cheaper and continuous instead of point-in-time.
 
 *[Close the laptop.]*
 
-> We're raising $X to land the first three reinsurer pilots in
-> Texas Hill Country.
+> We're raising $1.5M to land the first three reinsurer pilots in
+> Texas Hill Country and build out the bias-correction and TNFD
+> integration layers.
 
 ---
 
@@ -109,8 +112,30 @@ and bias-correct via inverse propensity weighting. The actuary sees
 the bias correction; the methodology document explains it.
 
 **Q: Pricing model?**
-A: [User to fill in: per-property subscription? Per-survey? Hybrid with
-the reinsurer paying us per-parcel-verified?]
+A: Two-sided. Hunters: free for the first 3 cameras, $29/property/month
+above that — this is the acquisition-channel side, not the monetization
+side. Reinsurers: $1,500 per parcel-verification on the Basal
+Informatics tier, or $5K/mo unlimited for a portfolio. A typical
+reinsurer's alternative is a $40K one-shot field survey, so we're
+~25x cheaper and continuous instead of point-in-time. Margin is
+high (the ML pipeline is ~pennies per parcel in compute); what
+we're really charging for is methodology defensibility and audit
+trail, not throughput.
+
+**Q: Unit economics?**
+A: Per-parcel variable cost is < $5 (Spaces storage + Droplet-hours
+for ML). LTV on the reinsurer side is 3-year contracts at $5K-20K
+ARR depending on portfolio size; CAC is high (direct sales into
+reinsurers) but we expect the first 3 pilots to be inbound once
+the methodology one-pager circulates.
+
+**Q: What's the raise for?**
+A: $1.5M: ~40% to close three reinsurer pilots (six-month runway
+plus pilot-specific integrations), ~30% to hire a PhD ecologist to
+own methodology defensibility and co-author the reinsurer-facing
+calibration validation, ~20% to build the bias-correction (IPW) and
+TNFD ontology-mapping layers that are currently stubbed, ~10%
+reserve.
 
 ## Pre-demo checklist
 
