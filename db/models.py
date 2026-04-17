@@ -279,7 +279,9 @@ class DetectionSummary(db.Model):
     camera_id = db.Column(
         db.Integer, db.ForeignKey("cameras.id"), nullable=False
     )
-    species_key = db.Column(db.String(80), nullable=False)
+    # SpeciesNet can produce full taxonomic chains (e.g.
+    # "mammalia;cetartiodactyla;suidae;sus;scrofa"), so give this room.
+    species_key = db.Column(db.String(200), nullable=False)
     total_photos = db.Column(db.Integer)
     independent_events = db.Column(db.Integer)
     avg_confidence = db.Column(db.Float)

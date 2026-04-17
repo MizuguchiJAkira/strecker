@@ -494,6 +494,11 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
                     # Basal-side additions (lender pivot). Nullable; hunter-side ignores.
                     "ALTER TABLE properties ADD COLUMN lender_client_id INTEGER",
                     "ALTER TABLE properties ADD COLUMN crop_type VARCHAR(40)",
+                    # SpeciesNet taxonomic chains (e.g.
+                    # "mammalia;cetartiodactyla;suidae;sus;scrofa") exceed the
+                    # original 80-char species_key cap and cause aggregation
+                    # inserts to fail with StringDataRightTruncation. Widen.
+                    "ALTER TABLE detection_summaries ALTER COLUMN species_key TYPE VARCHAR(200)",
                 ]
                 for stmt in _additive_migrations:
                     try:
