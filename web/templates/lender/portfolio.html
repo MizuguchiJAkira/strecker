@@ -98,6 +98,7 @@
           <th>Survey Period</th>
           <th class="text-right">Cameras</th>
           <th class="text-right">Events</th>
+          <th class="text-right">Hog rate<br>(events/cam-day)</th>
           <th class="text-right">Hog density<br>(animals/km²)</th>
           <th>Tier</th>
         </tr>
@@ -128,6 +129,13 @@
           </td>
           <td class="text-right mono text-slate-700 dark:text-gray-200">{{ r.total_cameras }}</td>
           <td class="text-right mono text-slate-700 dark:text-gray-200">{{ "{:,}".format(r.total_events) }}</td>
+          <td class="text-right mono">
+            {% if r.hog_detection_rate is not none %}
+              <span class="text-slate-900 dark:text-gray-100">{{ "%.3f"|format(r.hog_detection_rate) }}</span>
+            {% else %}
+              <span class="text-slate-400">—</span>
+            {% endif %}
+          </td>
           <td class="text-right mono">
             {% if r.hog_density is not none %}
               <span class="text-slate-900 dark:text-gray-100">{{ "%.2f"|format(r.hog_density) }}</span>

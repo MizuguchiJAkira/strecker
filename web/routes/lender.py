@@ -126,6 +126,7 @@ def _compute_parcel_exposures(parcel: Property, season: Season):
             parcel_acreage=parcel.acreage,
             crop_type=parcel.crop_type,
             recommendation=de.recommendation,
+            detection_rate_per_camera_day=de.detection_rate,
             caveats=de.caveats,
             method_notes=de.method_notes,
         )
@@ -293,6 +294,7 @@ def portfolio(lender_slug):
                 "hog_tier": "Pending",
                 "hog_score": None,
                 "hog_density": None,
+                "hog_detection_rate": None,
                 "total_events": 0,
                 "total_cameras": p.cameras.count(),
                 "season_days": 0,
@@ -306,6 +308,7 @@ def portfolio(lender_slug):
             "hog_tier": hog.tier if hog else "No detections",
             "hog_score": hog.score_0_100 if hog else None,
             "hog_density": hog.density_animals_per_km2 if hog else None,
+            "hog_detection_rate": hog.detection_rate_per_camera_day if hog else None,
             "total_events": stats["total_events"],
             "total_cameras": stats["n_cameras"],
             "season_days": stats["season_days"],
@@ -481,18 +484,40 @@ def parcel_exposure_json(lender_slug, parcel_id):
         "exposures": [
             {
                 "species_key": e.species_key,
-                "tier": e.tier,
-                "score_0_100": round(e.score_0_100, 1) if e.score_0_100 is not None else None,
-                "density_animals_per_km2": round(e.density_animals_per_km2, 2) if e.density_animals_per_km2 is not None else None,
-                "density_ci_low": round(e.density_ci_low, 2) if e.density_ci_low is not None else None,
-                "density_ci_high": round(e.density_ci_high, 2) if e.density_ci_high is not None else None,
-                "dollar_projection_annual_usd": e.dollar_projection_annual_usd,
-                "dollar_projection_ci_low_usd": e.dollar_projection_ci_low_usd,
-                "dollar_projection_ci_high_usd": e.dollar_projection_ci_high_usd,
-                "crop_modifier": e.crop_modifier,
-                "recommendation": e.recommendation,
-                "caveats": e.caveats,
-                "method_notes": e.method_notes,
+                # --- Pipeline-native outputs (camera-trap data → REM) ---
+                "pipeline": {
+                    "tier": e.tier,
+                    "score_0_100": round(e.score_0_100, 1) if e.score_0_100 is not None else None,
+                    "density_animals_per_km2": round(e.density_animals_per_km2, 2) if e.density_animals_per_km2 is not None else None,
+                    "density_ci_low": round(e.density_ci_low, 2) if e.density_ci_low is not None else None,
+                    "density_ci_high": round(e.density_ci_high, 2) if e.density_ci_high is not None else None,
+                    "detection_rate_per_camera_day": round(e.detection_rate_per_camera_day, 4) if e.detection_rate_per_camera_day is not None else None,
+                    "recommendation": e.recommendation,
+                    "caveats": e.caveats,
+                    "method_notes": e.method_notes,
+                },
+                # --- Supplementary modeled projection (third-party loss data) ---
+                # Explicitly nested to signal to downstream importers that
+                # these are NOT pipeline outputs. Scaled from Anderson et al.
+                # 2016 per-hog damage figures and APHIS Wildlife Services
+                # state-level reporting, with a crop-specific modifier.
+                "supplementary_projection": {
+                    "label": "MODELED PROJECTION",
+                    "disclaimer": ("Not a pipeline output. Derived from "
+                                   "third-party loss data (Anderson et al. 2016 "
+                                   "per-hog damage figures × parcel area × "
+                                   "crop modifier). Intended as context for "
+                                   "loan-review committees that have not yet "
+                                   "built their own damage model; a committee "
+                                   "with an internal model should consume the "
+                                   "pipeline outputs above instead."),
+                    "annual_damage_usd": e.dollar_projection_annual_usd,
+                    "annual_damage_ci_low_usd": e.dollar_projection_ci_low_usd,
+                    "annual_damage_ci_high_usd": e.dollar_projection_ci_high_usd,
+                    "crop_modifier": e.crop_modifier,
+                    "per_hog_annual_usd": e.per_hog_annual_usd,
+                    "source": "Anderson et al. 2016; APHIS Wildlife Services annual Program Data Reports",
+                } if e.dollar_projection_annual_usd is not None else None,
             }
             for e in exposures
         ],

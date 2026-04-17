@@ -106,20 +106,34 @@ class ExposureResult:
     For other species: tier=TIER_INFO_ONLY, score=None, dollar_projection=None.
 
     All fields are safe to serialize directly to the JSON API response.
+
+    Field groups:
+      - Pipeline outputs (computed directly from camera-trap data via REM
+        + tier classifier): tier, score_0_100, density_*, detection_rate_*.
+      - Supplementary modeled projection (scaled from third-party loss
+        data — Anderson 2016 / APHIS Wildlife Services): dollar_projection_*,
+        crop_modifier, per_hog_annual_usd. These are NOT pipeline outputs
+        and must be surfaced with a MODELED PROJECTION label.
+      - Context: parcel_area_km2, crop_type, recommendation, caveats,
+        method_notes.
     """
     species_key: str
+    # --- Pipeline-native outputs (relative abundance index + density) ---
     tier: str                               # Low | Moderate | Elevated | Severe | Informational | Unknown
     score_0_100: Optional[float]            # 0–100, higher = more exposure. Hog only.
     density_animals_per_km2: Optional[float]
     density_ci_low: Optional[float]
     density_ci_high: Optional[float]
-    dollar_projection_annual_usd: Optional[float]       # point estimate
-    dollar_projection_ci_low_usd: Optional[float]       # scaled from density CI
+    detection_rate_per_camera_day: Optional[float]   # raw events/cam-day; not REM-scaled; the primary relative-abundance index
+    # --- Supplementary modeled projection (third-party loss data) ---
+    dollar_projection_annual_usd: Optional[float]    # Anderson 2016 $/hog × area × crop modifier
+    dollar_projection_ci_low_usd: Optional[float]    # scaled from density CI
     dollar_projection_ci_high_usd: Optional[float]
+    # --- Context ---
     parcel_area_km2: Optional[float]
     crop_type: Optional[str]
     crop_modifier: float                    # 1.0 if crop unknown / mixed
-    per_hog_annual_usd: float               # base rate used
+    per_hog_annual_usd: float               # Anderson 2016 rate used for scaling
     recommendation: str                     # from underlying DensityEstimate
     caveats: List[str] = field(default_factory=list)
     method_notes: List[str] = field(default_factory=list)
@@ -197,15 +211,17 @@ def exposure_for_species(
     parcel_acreage: Optional[float],
     crop_type: Optional[str],
     recommendation: str,
+    detection_rate_per_camera_day: Optional[float] = None,
     caveats: Optional[List[str]] = None,
     method_notes: Optional[List[str]] = None,
     per_hog_annual_usd: float = DEFAULT_PER_HOG_ANNUAL_USD,
 ) -> ExposureResult:
     """Build an ExposureResult from a REM density estimate + parcel metadata.
 
-    Callers supply the density + CI from ``risk.population.estimate_density``
-    and the parcel's acreage + crop_type from the Property row. This keeps
-    the exposure module independent of the ORM.
+    Callers supply the density + CI + detection_rate from
+    ``risk.population.estimate_density`` and the parcel's acreage + crop_type
+    from the Property row. This keeps the exposure module independent of
+    the ORM.
     """
     caveats = list(caveats or [])
     method_notes = list(method_notes or [])
@@ -221,6 +237,7 @@ def exposure_for_species(
             density_animals_per_km2=density_mean,
             density_ci_low=density_ci_low,
             density_ci_high=density_ci_high,
+            detection_rate_per_camera_day=detection_rate_per_camera_day,
             dollar_projection_annual_usd=None,
             dollar_projection_ci_low_usd=None,
             dollar_projection_ci_high_usd=None,
@@ -263,6 +280,7 @@ def exposure_for_species(
         density_animals_per_km2=density_mean,
         density_ci_low=density_ci_low,
         density_ci_high=density_ci_high,
+        detection_rate_per_camera_day=detection_rate_per_camera_day,
         dollar_projection_annual_usd=dollars,
         dollar_projection_ci_low_usd=dollars_low,
         dollar_projection_ci_high_usd=dollars_high,

@@ -126,6 +126,7 @@ class TestExposureForSpecies:
             parcel_acreage=2340.0,  # ~9.47 km²
             crop_type="sorghum",
             recommendation="recommend_supplementary_survey",
+            detection_rate_per_camera_day=0.397,  # matches real seeded hog rate
         )
         assert e.species_key == "feral_hog"
         assert e.tier == "Elevated"
@@ -139,6 +140,38 @@ class TestExposureForSpecies:
         assert e.parcel_area_km2 == pytest.approx(9.4695, abs=0.01)
         # Method note makes the MODELED ESTIMATE label explicit.
         assert any("MODELED ESTIMATE" in n for n in e.method_notes)
+        # Detection-frequency is now a first-class output alongside density.
+        assert e.detection_rate_per_camera_day == pytest.approx(0.397)
+
+    def test_detection_rate_defaults_none_when_not_supplied(self):
+        # Callers that skip the detection_rate kwarg get None (keeps the
+        # function backward-compatible with pre-Phase-1 call sites).
+        e = exposure_for_species(
+            species_key="feral_hog",
+            density_mean=5.0,
+            density_ci_low=3.0,
+            density_ci_high=8.0,
+            parcel_acreage=1000.0,
+            crop_type="corn",
+            recommendation="sufficient_for_decision",
+        )
+        assert e.detection_rate_per_camera_day is None
+
+    def test_detection_rate_passes_through_on_non_hog_species(self):
+        e = exposure_for_species(
+            species_key="white_tailed_deer",
+            density_mean=21.4,
+            density_ci_low=4.95,
+            density_ci_high=67.17,
+            parcel_acreage=2340.0,
+            crop_type="sorghum",
+            recommendation="recommend_supplementary_survey",
+            detection_rate_per_camera_day=0.414,
+        )
+        # Non-hog species skip tier/score/dollar but STILL get
+        # detection_rate surfaced so the UI can show it informationally.
+        assert e.tier == TIER_INFO_ONLY
+        assert e.detection_rate_per_camera_day == pytest.approx(0.414)
 
     def test_non_hog_species_informational_only(self):
         e = exposure_for_species(

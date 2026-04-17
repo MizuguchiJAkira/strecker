@@ -173,10 +173,21 @@
           <span class="tier-badge tier-{{ hog.found.tier }}">{{ hog.found.tier }}</span>
         </div>
         {% if hog.found.density_animals_per_km2 is not none %}
-        <div class="text-sm text-slate-600 dark:text-gray-300 mono">
-          Density: <strong>{{ "%.2f"|format(hog.found.density_animals_per_km2) }}</strong>
-          animals/km² &nbsp;·&nbsp;
-          95% CI {{ "%.2f"|format(hog.found.density_ci_low) }} – {{ "%.2f"|format(hog.found.density_ci_high) }}
+        <div class="text-sm text-slate-600 dark:text-gray-300 mono space-y-0.5">
+          <div>
+            Density: <strong>{{ "%.2f"|format(hog.found.density_animals_per_km2) }}</strong>
+            animals/km² &nbsp;·&nbsp;
+            95% CI {{ "%.2f"|format(hog.found.density_ci_low) }} – {{ "%.2f"|format(hog.found.density_ci_high) }}
+          </div>
+          {% if hog.found.detection_rate_per_camera_day is not none %}
+          <div>
+            Detection frequency: <strong>{{ "%.3f"|format(hog.found.detection_rate_per_camera_day) }}</strong>
+            events per camera-day
+            <span class="text-[11px] text-slate-500 dark:text-gray-500 ml-2">
+              (relative abundance index, pre-REM)
+            </span>
+          </div>
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -201,8 +212,8 @@
     {% if hog.found.dollar_projection_annual_usd is not none %}
     <div class="mt-6 pt-5 hr-thin">
       <div class="flex items-baseline gap-2 mb-1">
-        <span class="modeled-banner">Modeled estimate</span>
-        <span class="field-label">Annual crop-damage projection</span>
+        <span class="modeled-banner">Modeled projection</span>
+        <span class="field-label">Annual crop-damage estimate (supplementary)</span>
       </div>
       <div class="flex items-baseline gap-4 mb-1 flex-wrap">
         <span class="text-3xl font-bold text-slate-900 dark:text-white mono">
@@ -217,10 +228,15 @@
         </span>
       </div>
       <div class="text-xs text-slate-500 dark:text-gray-400 mt-2 leading-relaxed">
-        Not a pipeline output. Scaled from per-hog damage figures (Anderson et al.
-        2016, inflation-adjusted to ${{ "%.0f"|format(hog.found.per_hog_annual_usd) }}/hog/year)
-        × parcel area × crop modifier. Intended as context for loan-review
-        committees, not a contractual valuation.
+        <strong>Not a pipeline output.</strong> Derived from third-party loss
+        data &mdash; per-hog annual damage figures from
+        <a href="#refs" class="underline decoration-dotted">Anderson et&nbsp;al. 2016</a>
+        and APHIS Wildlife Services state-level Program Data Reports, scaled
+        by parcel area and crop-specific modifier. Shown as supplementary
+        context for loan-review committees that have not yet built an
+        internal damage model. Committees with an internal model should
+        consume the pipeline outputs above (tier, density, detection
+        frequency) directly.
       </div>
     </div>
     {% endif %}
