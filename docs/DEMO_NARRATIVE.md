@@ -36,21 +36,33 @@
 "Feral Hog Exposure Score: 91.5 / 100 — Severe". 0–100 bar,
 gradient from green to red, filled to the upper right.]*
 
-> Feral Hog Exposure Score: 91.5 out of 100 — Severe.
-> 16.6 animals per square kilometer, 95% confidence interval 10.7 to 33.8.
-> Modeled annual damage: $28,000 on a 650-acre corn parcel —
-> that's the loan review committee's number, clearly labeled a modeled
-> projection, not a pipeline output.
+> Feral Hog Exposure Score: 91.5 out of 100 — Severe tier. The
+> pipeline output is a detection frequency of one point-five
+> independent events per camera-day, scaled through the Random
+> Encounter Model to sixteen point six animals per square kilometer,
+> 95% confidence interval 10.7 to 33.8.
+
+*[Scroll to the "Modeled projection · Annual crop-damage estimate
+(supplementary)" block. Pause two seconds so the MODELED PROJECTION
+badge + disclaimer are on camera.]*
+
+> A modeled damage projection of twenty-eight thousand dollars is
+> attached as supplementary context — derived from third-party loss
+> data, not a pipeline output. The lender committee has the rate and
+> the density; the dollar estimate is theirs to consume or replace
+> with their own damage model.
 
 ### Beat 3 — The wedge (~30s)
 
 *[Scroll to the caveats + recommendation block. Click the "Methodology" link in the footer.]*
 
-> The methodology is publicly defensible. Random Encounter Model
-> from Rowcliffe 2008. Bootstrap 95% CI over cameras. Tier cutoffs
-> from Mayer and Brisbin 2009. Dollar projections scaled from
-> Anderson 2016 per-hog damage figures times a crop-specific modifier.
-> Every number has a method note.
+> The methodology is publicly defensible. Detection rate is raw and
+> assumption-minimal — just independent events per camera-day. Density
+> derives from that via the Random Encounter Model from Rowcliffe 2008
+> with a bootstrap 95% CI over cameras. Tier cutoffs from Mayer and
+> Brisbin 2009. The dollar projection is a separate, supplementary
+> scaling from Anderson 2016 per-hog damage figures — clearly labeled
+> as third-party loss data, not pipeline output.
 >
 > Farm Credit pays us $1,500 per parcel-verification, or $5,000 a
 > month for unlimited. The alternative is $40,000 for a field survey
@@ -74,13 +86,17 @@ gradient from green to red, filled to the upper right.]*
 
 ## What the dashboard renders today (talking points)
 
-| Parcel                    | Crop      | Acreage | Tier      | Density (/km²) | Damage/yr | Notes |
-|---------------------------|-----------|--------:|-----------|---------------:|----------:|-------|
-| TX-BRA-2026-00002 Riverbend Farm      | corn      | 650   | Severe    | 16.61          | $28,306   | Small corn parcel, heavy hog pressure. Headline case. |
-| TX-KIM-2026-00001 Edwards Plateau Ranch | sorghum  | 2,340 | Elevated  | 5.13           | $25,561   | Mid-size parcel at the decision boundary. |
-| TX-GIL-2026-00004 Oak Ridge Orchards | peanut    | 180   | Moderate  | 3.34           | $1,381    | Demonstrates crop-modifier sensitivity (peanut 1.4×). |
-| TX-REA-2026-00003 Highland Meadow Ranch | pasture | 4,800 | Low       | 0.56           | $2,192    | Big parcel, low density, low damage — "the healthy case." |
-| TX-MEN-2026-00005 Prairie Creek Property | rangeland | 3,200 | Pending  | —              | —         | Just onboarded; demonstrates "survey in progress" state. |
+| Parcel                    | Crop      | Acreage | Tier      | Rate (ev/cam-day) | Density (/km²) | Modeled $/yr | Notes |
+|---------------------------|-----------|--------:|-----------|------------------:|---------------:|-------------:|-------|
+| TX-BRA-2026-00002 Riverbend Farm      | corn      | 650   | Severe    | 1.500              | 16.61          | $28,306      | Small corn parcel, heavy hog pressure. Headline case. |
+| TX-KIM-2026-00001 Edwards Plateau Ranch | sorghum  | 2,340 | Elevated  | 0.397              | 5.13           | $25,561      | Mid-size parcel at the decision boundary. |
+| TX-GIL-2026-00004 Oak Ridge Orchards | peanut    | 180   | Moderate  | 0.259              | 3.34           | $1,381       | Demonstrates crop-modifier sensitivity (peanut 1.4×). |
+| TX-REA-2026-00003 Highland Meadow Ranch | pasture | 4,800 | Low       | 0.043              | 0.56           | $2,192       | Big parcel, low density, low damage — "the healthy case." |
+| TX-MEN-2026-00005 Prairie Creek Property | rangeland | 3,200 | Pending   | —                  | —              | —            | Just onboarded; demonstrates "survey in progress" state. |
+
+All "Rate" values above are pipeline-derived. All "Modeled $/yr" values
+are supplementary projections scaled from Anderson 2016, shown only as
+context for committees without internal damage models.
 
 ## Likely Q&A
 

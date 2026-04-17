@@ -20,22 +20,38 @@ Basal produces the methodology-backed output.
 
 ## What we measure
 
-Per-species **density estimates** (animals/km²) for a parcel over a
-defined survey period, with bootstrap 95% confidence intervals and a
-sufficient/recommend-survey/insufficient-data flag. For feral hogs
-specifically we also produce a **tiered Exposure Score** (Low /
-Moderate / Elevated / Severe) and a modeled annual crop-damage
-projection labeled as supplementary context.
+Pipeline outputs — **index + density + tier**, in that order of
+primacy:
 
-We do not claim damage dollars as a pipeline output. The relationship
-between hog density and parcel-scale crop loss is poorly characterized
-in the literature (producer-survey recall bias, state-level
-extrapolations that break down at parcel scale). What we publish is the
-verified density + tier + projection — each clearly labeled according
-to whether it came out of the pipeline or a downstream model. The loan
-committee can use the tier as a binary go/no-go signal or feed the
-density into its own internal collateral valuation without adopting
-our damage model.
+1. **Detection frequency** (events per camera-day): the raw relative
+   abundance index, computed directly from independent-event counts.
+   This is the pre-REM, minimum-assumption quantity. Two parcels
+   surveyed with identical camera deployments can be compared on this
+   number alone without invoking any movement-distance assumption.
+2. **Density estimate** (animals/km²): the REM-scaled per-area
+   population derived from the detection rate using per-species daily
+   travel distance. Reported with a bootstrap 95% confidence interval.
+3. **Tier** (Low / Moderate / Elevated / Severe, feral hog only v1):
+   the binary-decision-grade classification per Mayer & Brisbin 2009
+   hog-density bins. Drives the loan-review committee's
+   go / condition / no-go / survey-required decision path.
+
+Alongside these we also publish an **Exposure Score** (0–100,
+piecewise-linear anchored on the tier cutoffs) for visual legibility
+on a single gauge, and a **modeled annual crop-damage projection** as
+supplementary context — but those are derivations, not the primary
+outputs.
+
+Damage dollars are NOT a pipeline output. The relationship between hog
+density and parcel-scale crop loss is poorly characterized in the
+literature (producer-survey recall bias, state-level extrapolations
+that break down at parcel scale). We produce the density + rate + tier
+with methodology-defensible confidence intervals; the dollar-scaling
+is attached separately under a `supplementary_projection` object in
+the JSON API, with its own disclaimer. A loan committee with an
+internal damage model should consume the pipeline outputs directly
+and ignore our dollar block; committees without an internal model can
+use our dollar figure as a convenience projection, clearly labeled.
 
 ## Estimator: Random Encounter Model (REM)
 
@@ -128,35 +144,53 @@ lender dashboard (`/lender/<slug>/parcel/<id>`) and the JSON API
 record suitable for import into the lender's internal portfolio-
 management system:
 
+The record shape explicitly separates pipeline outputs from
+supplementary modeled projections, so downstream importers cannot
+accidentally treat the damage dollar figure as a pipeline output:
+
 ```json
 {
-  "species_key":              "feral_hog",
-  "common_name":              "Feral Hog",
-  "tier":                     "Elevated",
-  "score_0_100":              50.6,
-  "density_animals_per_km2":  5.13,
-  "density_ci_low":           1.29,
-  "density_ci_high":          16.64,
-  "dollar_projection_annual_usd":       25561,
-  "dollar_projection_ci_low_usd":        6432,
-  "dollar_projection_ci_high_usd":      82963,
-  "crop_modifier":            1.30,
-  "n_cameras":                3,
-  "total_camera_days":        174.0,
-  "total_detections":         69,
-  "recommendation":           "recommend_supplementary_survey",
-  "caveats": [
-    "Cameras at non-random placements (feeder, trail) violate REM's
-     movement-independence assumption. Inverse propensity weighting
-     (Kolowski & Forrester 2017) corrects for residual bias but does
-     not eliminate it."
-  ],
-  "method_notes": [
-    "Daily travel distance: v = 6.0 km/day (sd 2.5). Source: Kay et al. 2017.",
-    "Dollar projection is a MODELED ESTIMATE, not a pipeline output..."
-  ]
+  "species_key": "feral_hog",
+
+  "pipeline": {
+    "tier":                           "Elevated",
+    "score_0_100":                    50.6,
+    "density_animals_per_km2":        5.13,
+    "density_ci_low":                 1.29,
+    "density_ci_high":                16.64,
+    "detection_rate_per_camera_day":  0.397,
+    "recommendation":                 "recommend_supplementary_survey",
+    "caveats": [
+      "Cameras at non-random placements (feeder, trail) violate REM's
+       movement-independence assumption. Inverse propensity weighting
+       (Kolowski & Forrester 2017) corrects for residual bias but does
+       not eliminate it."
+    ],
+    "method_notes": [
+      "Daily travel distance: v = 6.0 km/day (sd 2.5). Source: Kay et al. 2017."
+    ]
+  },
+
+  "supplementary_projection": {
+    "label":                     "MODELED PROJECTION",
+    "source":                    "Anderson et al. 2016; APHIS Wildlife Services annual Program Data Reports",
+    "annual_damage_usd":         25561,
+    "annual_damage_ci_low_usd":   6421,
+    "annual_damage_ci_high_usd": 82980,
+    "crop_modifier":             1.30,
+    "per_hog_annual_usd":        405,
+    "disclaimer": "Not a pipeline output. Derived from third-party loss
+                   data (Anderson et al. 2016 per-hog damage figures
+                   × parcel area × crop modifier). Intended as context
+                   for loan-review committees that have not yet built
+                   their own damage model; a committee with an internal
+                   model should consume the pipeline outputs above
+                   instead."
+  }
 }
 ```
+
+The parallel under `stats` also includes `n_cameras`, `total_camera_days`, and `total_detections` at the property-level summary.
 
 Audit trail is retained at **camera-day granularity**: individual
 detection timestamps, SpeciesNet inference confidence per photo, and

@@ -2,13 +2,22 @@
 
 > **Status (2026-04-17):** Technical decision in this doc stands — we
 > produce density + tier as pipeline outputs, dollar projections as
-> supplementary modeled context clearly labeled. Audience framing has
-> since shifted from the original "actuarial / reinsurer" target to
-> **ag lenders and their loan-review committees**; see `METHODOLOGY.md`
-> and `DEMO_NARRATIVE.md` for current positioning. The reasoning for
-> not making damage dollars a pipeline output is the same regardless
-> of buyer — loan officers and actuaries both prefer to run their own
-> damage math against a defensible density input.
+> supplementary modeled context clearly labeled. One refinement post-
+> VerCauteren call: the canonical *relative abundance index* is the
+> raw **detection frequency** (independent events per camera-day),
+> pre-REM. Density is the REM-derived downstream of it. The
+> Nature Exposure Report surfaces both in the headline block; the
+> JSON API splits pipeline outputs (tier / score / density / detection
+> rate) from the `supplementary_projection` (dollar figure) as
+> separate top-level objects so downstream importers can't conflate
+> them.
+>
+> Audience framing has since shifted from the original "actuarial /
+> reinsurer" target to **ag lenders and their loan-review committees**;
+> see `METHODOLOGY.md` and `DEMO_NARRATIVE.md` for current positioning.
+> The reasoning for not making damage dollars a pipeline output is the
+> same regardless of buyer — loan officers and actuaries both prefer
+> to run their own damage math against a defensible density input.
 
 ## Why
 

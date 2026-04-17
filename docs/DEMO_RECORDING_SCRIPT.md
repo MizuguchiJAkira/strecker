@@ -52,7 +52,11 @@ Script:
 > under assessment."
 
 Action at 0:18: Hover the cursor over the tier-tally chips (`1 Severe
-Â· 1 Elevated · 1 Moderate · 1 Low`), pause for 1 second. Do NOT click.
+· 1 Elevated · 1 Moderate · 1 Low`), pause for 1 second. Do NOT click.
+Then briefly drift right across the `Hog rate (events/cam-day)` column
+— this is the pipeline-native relative abundance index; have the cursor
+read that column top-to-bottom so the viewer sees 1.500 → 0.397 → 0.259
+→ 0.043 scaling with tier.
 
 Script continues:
 > "The data comes from trail cameras the landowner uploaded directly,
@@ -66,29 +70,40 @@ Severe tier). Page transitions to the parcel report.
 
 Script:
 > "Feral Hog Exposure Score: ninety-one point five out of one hundred
-> — Severe."
+> — Severe tier."
 
-Action at 0:34: cursor hovers the gradient bar, reads the density and CI.
+Action at 0:34: cursor hovers the density + detection-frequency lines
+under the score.
 
 Script:
-> "Sixteen point six animals per square kilometer, ninety-five percent
-> confidence interval ten point seven to thirty-three point eight.
-> Modeled annual damage: twenty-eight thousand dollars on a six-fifty-
-> acre corn parcel — that's the loan review committee's number, clearly
-> labeled a modeled projection, not a pipeline output."
+> "The pipeline output is a detection frequency of one point five
+> independent events per camera-day, scaled through the Random Encounter
+> Model to sixteen point six animals per square kilometer, ninety-five
+> percent confidence interval ten point seven to thirty-three point
+> eight."
 
-Action at 0:42: cursor hovers the "MODELED ESTIMATE" badge + the
-"Not a pipeline output" paragraph, so a viewer reading without audio
-still gets the point.
+Action at 0:40: cursor scrolls past the density block and pauses on
+the "Modeled projection · Annual crop-damage estimate (supplementary)"
+block. The MODELED PROJECTION badge + the "Not a pipeline output" +
+"third-party loss data" disclaimer need to be on camera for ~1.5 sec.
+
+Script:
+> "A modeled damage projection of twenty-eight thousand dollars is
+> attached as supplementary context — derived from third-party loss
+> data, not a pipeline output. The committee has the rate and the
+> density; the dollar estimate is theirs to consume or replace with
+> their own damage model."
 
 ### Beat 3 — Wedge (0:48 – 1:18)
 
 Script:
-> "The methodology is publicly defensible. Random Encounter Model from
-> Rowcliffe 2008. Bootstrap ninety-five percent CI over cameras. Tier
-> cutoffs from Mayer and Brisbin 2009. Dollar projections scaled from
-> Anderson 2016 per-hog damage figures times a crop-specific modifier.
-> Every number has a method note."
+> "The methodology is publicly defensible. Detection rate is raw and
+> assumption-minimal. Density derives from it via the Random Encounter
+> Model from Rowcliffe 2008, bootstrap ninety-five percent CI over
+> cameras. Tier cutoffs from Mayer and Brisbin 2009. The dollar
+> projection is a separate, supplementary scaling from Anderson 2016
+> per-hog damage figures — clearly labeled as third-party loss data,
+> not pipeline output."
 
 Action at 0:55: scroll down to the methodology footer (bottom of the
 page). Pause 1 second so the reference list is legible.
