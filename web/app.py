@@ -253,17 +253,21 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
             csrf.exempt(bp)
 
     elif site == "basal":
-        # Owner / insurer-facing blueprints only
+        # Basal Informatics — insurer + lender-facing blueprints only
         from web.routes.demo import demo_bp
         from web.routes.owner import owner_bp
         from web.routes.api.owner import owner_api_bp
+        from web.routes.lender import lender_bp
 
         app.register_blueprint(demo_bp)
         app.register_blueprint(owner_bp)
         app.register_blueprint(owner_api_bp)
+        app.register_blueprint(lender_bp)
 
-        # Exempt JSON API from CSRF
+        # Exempt JSON API endpoints from CSRF (auth via session/token, not cookie)
         csrf.exempt(owner_api_bp)
+        # Lender routes are server-rendered HTML with CSRF on forms only;
+        # the JSON exposure endpoint under /lender/api/ is read-only GET.
 
     # ── Static brand context based on site ──
     is_basal = (site == "basal")

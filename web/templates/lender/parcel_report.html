@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Nature Exposure Report — {{ parcel.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .nx-report { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  .nx-report .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .nx-report .hr-thin { border-bottom: 1px solid #e2e8f0; }
+  html.dark .nx-report .hr-thin { border-color: #334155; }
+  .nx-report .field-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #64748b; font-weight: 600;
+  }
+  html.dark .nx-report .field-label { color: #94a3b8; }
+  .nx-report .field-value {
+    font-size: 14px; color: #0f172a; margin-top: 2px;
+  }
+  html.dark .nx-report .field-value { color: #e2e8f0; }
+
+  .tier-badge {
+    display: inline-block; padding: 4px 14px; border-radius: 4px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .tier-Low      { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .tier-Moderate { background: #fefce8; color: #854d0e; border: 1px solid #fde68a; }
+  .tier-Elevated { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+  .tier-Severe   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .tier-Informational, .tier-Unknown {
+    background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0;
+  }
+  html.dark .tier-Low      { background: #064e3b33; color: #6ee7b7; border-color: #065f46; }
+  html.dark .tier-Moderate { background: #78350f33; color: #fcd34d; border-color: #854d0e; }
+  html.dark .tier-Elevated { background: #7c2d1233; color: #fdba74; border-color: #9a3412; }
+  html.dark .tier-Severe   { background: #7f1d1d33; color: #fca5a5; border-color: #991b1b; }
+  html.dark .tier-Informational, html.dark .tier-Unknown {
+    background: #1e293b; color: #cbd5e1; border-color: #334155;
+  }
+
+  .score-bar-wrap {
+    position: relative; height: 10px; background: #e2e8f0;
+    border-radius: 5px; overflow: hidden;
+  }
+  html.dark .score-bar-wrap { background: #334155; }
+  .score-bar {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, #10b981 0%, #eab308 33%, #f97316 66%, #ef4444 100%);
+    transition: width 0.4s ease;
+  }
+  .score-bar-mask {
+    position: absolute; top: 0; bottom: 0; right: 0;
+    background: #e2e8f0;
+  }
+  html.dark .score-bar-mask { background: #334155; }
+  .tier-tick-row {
+    position: relative; height: 14px; margin-top: 2px;
+    font-size: 9px; color: #64748b;
+  }
+  .tier-tick {
+    position: absolute; transform: translateX(-50%);
+  }
+
+  .species-card {
+    padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fff;
+  }
+  html.dark .species-card { border-color: #334155; background: #1e293b; }
+  .modeled-banner {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    background: #f1f5f9; color: #475569; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+    margin-right: 6px;
+  }
+  html.dark .modeled-banner { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+
+  .ci-note {
+    font-size: 11px; color: #64748b; font-family: ui-monospace, monospace;
+  }
+  html.dark .ci-note { color: #94a3b8; }
+
+  .caveat-list { font-size: 12px; color: #475569; }
+  html.dark .caveat-list { color: #cbd5e1; }
+  .caveat-list li { margin-bottom: 6px; }
+
+  .report-ref-line {
+    font-size: 11px; color: #94a3b8; font-family: ui-monospace, monospace;
+  }
+  html.dark .report-ref-line { color: #64748b; }
+</style>
+
+<div class="nx-report">
+
+  <!-- Report header -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <a href="{{ url_for('lender.portfolio', lender_slug=lender.slug) }}"
+         class="text-sm text-teal-600 dark:text-teal-400 hover:underline">
+        &larr; {{ lender.name }} portfolio
+      </a>
+      <div class="report-ref-line">
+        REPORT-{{ parcel.parcel_id }}-{{ today.strftime('%Y%m%d') }}
+      </div>
+    </div>
+    <div class="text-xs uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-1">
+      Nature Exposure Report
+    </div>
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">{{ parcel.name }}</h1>
+    <div class="text-sm mono text-slate-500 dark:text-gray-400 mt-1">
+      Parcel {{ parcel.parcel_id }}
+    </div>
+  </div>
+
+  <!-- Parcel metadata strip -->
+  <div class="grid grid-cols-2 md:grid-cols-6 gap-4 pb-5 mb-6 hr-thin">
+    <div>
+      <div class="field-label">County</div>
+      <div class="field-value">{{ parcel.county or '—' }}</div>
+    </div>
+    <div>
+      <div class="field-label">State</div>
+      <div class="field-value mono">{{ parcel.state or '—' }}</div>
+    </div>
+    <div>
+      <div class="field-label">Acreage</div>
+      <div class="field-value mono">
+        {{ "{:,.0f}".format(parcel.acreage) if parcel.acreage else '—' }} ac
+      </div>
+    </div>
+    <div>
+      <div class="field-label">Crop class</div>
+      <div class="field-value">{{ parcel.crop_type or 'Unspecified' }}</div>
+    </div>
+    <div>
+      <div class="field-label">Cameras</div>
+      <div class="field-value mono">{{ stats.n_cameras }}</div>
+    </div>
+    <div>
+      <div class="field-label">Survey period</div>
+      <div class="field-value mono text-xs">
+        {% if season %}
+          {{ season.start_date }}<br>{{ season.end_date }}<br>
+          <span class="text-slate-400">({{ stats.season_days }} d)</span>
+        {% else %}—{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary finding banner -->
+  {% set hog = namespace(found=None) %}
+  {% for e in exposures %}{% if e.species_key == 'feral_hog' %}{% set hog.found = e %}{% endif %}{% endfor %}
+  {% if hog.found %}
+  <div class="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+    <div class="flex items-start justify-between gap-6 flex-wrap">
+      <div>
+        <div class="field-label mb-2">Feral Hog Exposure Score</div>
+        <div class="flex items-baseline gap-3 mb-3">
+          <span class="text-5xl font-extrabold text-slate-900 dark:text-white mono">
+            {{ "%.1f"|format(hog.found.score_0_100) if hog.found.score_0_100 is not none else "—" }}
+          </span>
+          <span class="text-lg text-slate-400 dark:text-gray-500">/ 100</span>
+          <span class="tier-badge tier-{{ hog.found.tier }}">{{ hog.found.tier }}</span>
+        </div>
+        {% if hog.found.density_animals_per_km2 is not none %}
+        <div class="text-sm text-slate-600 dark:text-gray-300 mono">
+          Density: <strong>{{ "%.2f"|format(hog.found.density_animals_per_km2) }}</strong>
+          animals/km² &nbsp;·&nbsp;
+          95% CI {{ "%.2f"|format(hog.found.density_ci_low) }} – {{ "%.2f"|format(hog.found.density_ci_high) }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="w-full md:w-1/2">
+        <!-- 0-100 gradient bar -->
+        <div class="score-bar-wrap">
+          {% if hog.found.score_0_100 is not none %}
+            <div class="score-bar" style="width: 100%"></div>
+            <div class="score-bar-mask" style="width: {{ 100 - hog.found.score_0_100 }}%"></div>
+          {% endif %}
+        </div>
+        <div class="tier-tick-row">
+          <div class="tier-tick" style="left: 0%">Low</div>
+          <div class="tier-tick" style="left: 25%">Moderate</div>
+          <div class="tier-tick" style="left: 50%">Elevated</div>
+          <div class="tier-tick" style="left: 75%">Severe</div>
+          <div class="tier-tick" style="left: 100%">100</div>
+        </div>
+      </div>
+    </div>
+
+    {% if hog.found.dollar_projection_annual_usd is not none %}
+    <div class="mt-6 pt-5 hr-thin">
+      <div class="flex items-baseline gap-2 mb-1">
+        <span class="modeled-banner">Modeled estimate</span>
+        <span class="field-label">Annual crop-damage projection</span>
+      </div>
+      <div class="flex items-baseline gap-4 mb-1 flex-wrap">
+        <span class="text-3xl font-bold text-slate-900 dark:text-white mono">
+          ${{ "{:,.0f}".format(hog.found.dollar_projection_annual_usd) }}
+        </span>
+        <span class="ci-note">
+          CI ${{ "{:,.0f}".format(hog.found.dollar_projection_ci_low_usd) }} –
+          ${{ "{:,.0f}".format(hog.found.dollar_projection_ci_high_usd) }}/yr
+        </span>
+        <span class="ci-note">
+          (crop modifier {{ "%.2f"|format(hog.found.crop_modifier) }}× for {{ hog.found.crop_type or 'unspecified' }})
+        </span>
+      </div>
+      <div class="text-xs text-slate-500 dark:text-gray-400 mt-2 leading-relaxed">
+        Not a pipeline output. Scaled from per-hog damage figures (Anderson et al.
+        2016, inflation-adjusted to ${{ "%.0f"|format(hog.found.per_hog_annual_usd) }}/hog/year)
+        × parcel area × crop modifier. Intended as context for loan-review
+        committees, not a contractual valuation.
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Recommendation + caveats -->
+    <div class="mt-6 pt-5 hr-thin grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <div class="field-label mb-2">Recommendation</div>
+        <div class="field-value">
+          {% if hog.found.recommendation == 'sufficient_for_decision' %}
+            Sufficient data for collateral review.
+          {% elif hog.found.recommendation == 'recommend_supplementary_survey' %}
+            Commission a supplementary survey — confidence interval exceeds
+            decision-grade width (&gt;1.5× ratio).
+          {% else %}
+            Insufficient data — add cameras or extend survey period.
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="field-label mb-2">Caveats</div>
+        {% if hog.found.caveats %}
+        <ul class="caveat-list list-disc list-inside">
+          {% for c in hog.found.caveats %}<li>{{ c }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-sm text-slate-400">None flagged.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Other species (informational) -->
+  {% set others = exposures | rejectattr('species_key', 'equalto', 'feral_hog') | list %}
+  {% if others %}
+  <div class="mb-8">
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-3">
+      Other species detected
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% for e in others %}
+        <div class="species-card">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-semibold text-slate-800 dark:text-gray-100">
+              {{ e.species_key.replace('_', ' ').title() }}
+            </div>
+            <span class="tier-badge tier-{{ e.tier }}">{{ e.tier }}</span>
+          </div>
+          {% if e.density_animals_per_km2 is not none %}
+            <div class="text-sm mono text-slate-700 dark:text-gray-200">
+              {{ "%.2f"|format(e.density_animals_per_km2) }} /km²
+            </div>
+            <div class="ci-note mt-1">
+              CI {{ "%.2f"|format(e.density_ci_low) }} – {{ "%.2f"|format(e.density_ci_high) }}
+            </div>
+          {% else %}
+            <div class="text-sm text-slate-500 dark:text-gray-400">
+              Density not computed (no published daily travel distance).
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Methodology footer -->
+  <div class="mt-10 pt-6 hr-thin text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+    <div class="font-semibold uppercase tracking-widest text-slate-700 dark:text-gray-300 mb-2">
+      Methodology
+    </div>
+    Density estimated via the Random Encounter Model (Rowcliffe et al. 2008)
+    from {{ stats.total_events }} independent detections across {{ stats.n_cameras }} cameras
+    over {{ stats.season_days }} survey days. Confidence intervals
+    via 1,000-iteration nonparametric bootstrap over cameras with
+    truncated-normal perturbation of published daily-travel-distance values.
+    Tier assignment per Mayer &amp; Brisbin 2009 bins:
+    &lt;2 Low · 2–5 Moderate · 5–10 Elevated · ≥10 Severe (animals/km²).
+    Cameras at non-random placements (feeder, trail, water) violate REM's
+    movement-independence assumption; inverse propensity weighting corrects
+    for residual bias but does not eliminate it. Full methodology:
+    <a href="/static/METHODOLOGY.pdf" class="text-teal-600 dark:text-teal-400 hover:underline">one-page brief</a>.
+  </div>
+</div>
+{% endblock %}
