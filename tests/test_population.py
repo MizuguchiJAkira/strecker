@@ -276,3 +276,72 @@ class TestEstimateForProperty:
         # Raccoon (no v) goes last regardless of detection rate.
         assert out[-1].species_key == "raccoon"
         assert out[-1].density_mean is None
+
+
+# ---------------------------------------------------------------------------
+# Bias-correction integration
+# ---------------------------------------------------------------------------
+
+class TestBiasCorrectionIntegration:
+    """estimate_density(apply_bias_correction=True) populates
+    detection_rate_adjusted and uses it for the REM density."""
+
+    def test_adjusted_rate_populated_for_known_species(self):
+        # All-feeder hog deployment; literature factor for feeder = 10×.
+        # Raw rate 1.0; adjusted ≈ 0.1.
+        efforts = [
+            CameraSurveyEffort(camera_id=i, camera_days=30, detections=30,
+                               placement_context="feeder")
+            for i in range(5)
+        ]
+        e = estimate_density("feral_hog", efforts,
+                             rng=random.Random(0), apply_bias_correction=True)
+        assert e.detection_rate == pytest.approx(1.0)
+        assert e.detection_rate_adjusted == pytest.approx(0.1, rel=1e-6)
+        # REM density should be driven by adjusted rate, not raw.
+        from risk.population import _rem_density
+        from config import settings
+        expected = _rem_density(0.1, 6.0,
+                                settings.CAMERA_DETECTION_RADIUS_M / 1000.0,
+                                settings.CAMERA_DETECTION_ANGLE_RAD)
+        assert e.density_mean == pytest.approx(expected, rel=1e-6)
+
+    def test_apply_bias_correction_false_preserves_raw_path(self):
+        efforts = [
+            CameraSurveyEffort(camera_id=i, camera_days=30, detections=30,
+                               placement_context="feeder")
+            for i in range(5)
+        ]
+        e = estimate_density("feral_hog", efforts,
+                             rng=random.Random(0), apply_bias_correction=False)
+        assert e.detection_rate_adjusted is None
+        # density_mean must equal raw-rate REM
+        from risk.population import _rem_density
+        from config import settings
+        expected = _rem_density(1.0, 6.0,
+                                settings.CAMERA_DETECTION_RADIUS_M / 1000.0,
+                                settings.CAMERA_DETECTION_ANGLE_RAD)
+        assert e.density_mean == pytest.approx(expected, rel=1e-6)
+
+    def test_unknown_species_falls_back_to_empirical_ipw(self):
+        # raccoon has no factor table; empirical IPW with uniform target
+        # over the lone "feeder" context degenerates to the simple mean.
+        efforts = [
+            CameraSurveyEffort(camera_id=i, camera_days=30, detections=15,
+                               placement_context="feeder")
+            for i in range(5)
+        ]
+        e = estimate_density("raccoon", efforts,
+                             rng=random.Random(0), apply_bias_correction=True)
+        assert e.detection_rate == pytest.approx(0.5)
+        assert e.detection_rate_adjusted == pytest.approx(0.5, rel=1e-6)
+
+    def test_bias_caveats_appended(self):
+        efforts = [
+            CameraSurveyEffort(camera_id=i, camera_days=30, detections=30,
+                               placement_context="feeder")
+            for i in range(5)
+        ]
+        e = estimate_density("feral_hog", efforts,
+                             rng=random.Random(0), apply_bias_correction=True)
+        assert any("no random-placement" in c for c in e.caveats)

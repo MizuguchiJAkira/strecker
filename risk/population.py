@@ -43,6 +43,10 @@ import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
+from bias.placement_ipw import (
+    BiasCorrectionResult,
+    compute_bias_correction,
+)
 from config import settings
 
 # Recommendation enum (just strings for transport convenience).
@@ -107,7 +111,9 @@ def _bootstrap_density(efforts: Sequence[CameraSurveyEffort],
                        v_km_day: float, v_sd: float,
                        r_km: float, theta_rad: float,
                        n: int = 1000,
-                       rng: Optional[random.Random] = None
+                       rng: Optional[random.Random] = None,
+                       species_key: Optional[str] = None,
+                       apply_bias_correction: bool = False
                        ) -> List[float]:
     """Nonparametric bootstrap over cameras, with parametric perturbation
     of v (truncated normal) to propagate movement-distance uncertainty.
@@ -141,7 +147,17 @@ def _bootstrap_density(efforts: Sequence[CameraSurveyEffort],
         boot_days = sum(c.camera_days for c in boot)
         if boot_days <= 0:
             continue
-        rate = boot_dets / boot_days
+        if apply_bias_correction and species_key is not None:
+            # Recompute the bias-corrected rate per bootstrap iteration so
+            # IPW uncertainty propagates into the CI.
+            br = compute_bias_correction(species_key, boot)
+            rate = (br.literature_adjusted_rate
+                    if br.literature_adjusted_rate is not None
+                    else (br.empirical_ipw_rate
+                          if br.empirical_ipw_rate is not None
+                          else boot_dets / boot_days))
+        else:
+            rate = boot_dets / boot_days
         if v_sd > 0:
             v_sample = rng.gauss(v_km_day, v_sd)
             v_sample = max(v_min, min(v_max, v_sample))
@@ -234,7 +250,8 @@ def estimate_density(species_key: str,
                      r_km: Optional[float] = None,
                      theta_rad: Optional[float] = None,
                      bootstrap_n: Optional[int] = None,
-                     rng: Optional[random.Random] = None
+                     rng: Optional[random.Random] = None,
+                     apply_bias_correction: bool = True
                      ) -> DensityEstimate:
     """REM density estimate for one species + bootstrap 95% CI.
 
@@ -261,6 +278,21 @@ def estimate_density(species_key: str,
     method_notes: List[str] = []
     caveats = _caveats_from(efforts, total_camera_days, total_detections)
 
+    # Camera-placement bias correction (Kolowski & Forrester 2017).
+    # Yields a literature-prior-adjusted rate (primary) and an empirical
+    # Hájek-IPW rate (diagnostic). We feed the adjusted rate into REM
+    # downstream when apply_bias_correction is True.
+    bias_result: Optional[BiasCorrectionResult] = None
+    detection_rate_adjusted: Optional[float] = None
+    if apply_bias_correction and efforts and total_camera_days > 0:
+        bias_result = compute_bias_correction(species_key, list(efforts))
+        if bias_result.literature_adjusted_rate is not None:
+            detection_rate_adjusted = bias_result.literature_adjusted_rate
+        elif bias_result.empirical_ipw_rate is not None:
+            detection_rate_adjusted = bias_result.empirical_ipw_rate
+        caveats.extend(bias_result.caveats)
+        method_notes.extend(bias_result.method_notes)
+
     # Species without a published v: detection-rate-only output.
     if movement is None:
         method_notes.append(
@@ -270,7 +302,7 @@ def estimate_density(species_key: str,
         return DensityEstimate(
             species_key=species_key,
             detection_rate=detection_rate,
-            detection_rate_adjusted=None,
+            detection_rate_adjusted=detection_rate_adjusted,
             density_mean=None,
             density_ci_low=None,
             density_ci_high=None,
@@ -294,7 +326,7 @@ def estimate_density(species_key: str,
         return DensityEstimate(
             species_key=species_key,
             detection_rate=detection_rate,
-            detection_rate_adjusted=None,
+            detection_rate_adjusted=detection_rate_adjusted,
             density_mean=None,
             density_ci_low=None,
             density_ci_high=None,
@@ -307,13 +339,21 @@ def estimate_density(species_key: str,
             method_notes=method_notes,
         )
 
-    # Point estimate.
-    density_mean = _rem_density(detection_rate, v_km_day, r_km, theta_rad)
+    # Point estimate. Use the bias-adjusted rate when available so REM is
+    # fed the random-placement-equivalent rate it assumes as input.
+    rem_input_rate = (detection_rate_adjusted
+                      if detection_rate_adjusted is not None
+                      else detection_rate)
+    density_mean = _rem_density(rem_input_rate, v_km_day, r_km, theta_rad)
 
-    # Bootstrap CI.
+    # Bootstrap CI. Pass species_key + apply_bias_correction so each
+    # bootstrap iteration recomputes the IPW correction on the resampled
+    # cameras — propagates IPW uncertainty into the CI.
     samples = _bootstrap_density(
         efforts, v_km_day, v_sd, r_km, theta_rad,
         n=bootstrap_n, rng=rng,
+        species_key=species_key,
+        apply_bias_correction=apply_bias_correction and detection_rate_adjusted is not None,
     )
     if samples:
         ci_low = _percentile(samples, 2.5)
@@ -327,7 +367,7 @@ def estimate_density(species_key: str,
     return DensityEstimate(
         species_key=species_key,
         detection_rate=detection_rate,
-        detection_rate_adjusted=None,
+        detection_rate_adjusted=detection_rate_adjusted,
         density_mean=density_mean,
         density_ci_low=ci_low,
         density_ci_high=ci_high,
