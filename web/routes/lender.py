@@ -206,13 +206,22 @@ def _neighboring_coverage(parcel: Property, season: Season,
                 "neighbors": [],
                 "cutoff_km": cutoff_km}
 
-    # Pull detections for those cameras in the same season so we can report
-    # supplementary event counts per species.
+    # Pull detections for neighbor cameras across any season whose date
+    # range overlaps the target parcel's survey window. Neighbor cameras
+    # belong to different properties, so their DetectionSummary rows
+    # reference different season_id values even when the calendar window
+    # is the same. Matching on date overlap (not season_id) is the correct
+    # semantics for "data collected during this parcel's survey period."
     nbr_cam_ids = [c.camera_id for c in nbr_classifications]
-    det_rows = DetectionSummary.query.filter(
-        DetectionSummary.season_id == season.id,
-        DetectionSummary.camera_id.in_(nbr_cam_ids),
-    ).all() if nbr_cam_ids else []
+    if nbr_cam_ids and season.start_date and season.end_date:
+        det_rows = (DetectionSummary.query
+                    .join(Season, Season.id == DetectionSummary.season_id)
+                    .filter(DetectionSummary.camera_id.in_(nbr_cam_ids))
+                    .filter(Season.start_date <= season.end_date)
+                    .filter(Season.end_date >= season.start_date)
+                    .all())
+    else:
+        det_rows = []
 
     by_cam = {}
     for d in det_rows:
