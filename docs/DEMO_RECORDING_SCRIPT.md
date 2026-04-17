@@ -63,7 +63,7 @@ Script continues:
 > because Farm Credit told them their loan renewal depends on a current
 > ecological assessment."
 
-Action at 0:26: click the `TX-BRA-2026-00002` link (Riverbend Farm,
+Action at 0:26: click the `TX-BRA-2026-00008` link (Riverbend Farm,
 Severe tier). Page transitions to the parcel report.
 
 **Wait 0.5 sec** for layout to settle.
