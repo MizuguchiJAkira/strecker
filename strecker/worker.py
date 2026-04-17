@@ -154,6 +154,28 @@ def _quarter_for(ts: datetime):
     return q, start, end, label
 
 
+def _is_real_species_key(key):
+    """Skip SpeciesNet internal "blank" / "no_cv_result" UUID class ids
+    before aggregation. Those keys leak into the Basal dashboard as
+    garbage rows like "f1856211-...-;;;;;;blank" otherwise.
+
+    A legitimate species_key is lowercase + underscores (e.g.
+    "feral_hog", "white_tailed_deer"). Anything containing a UUID
+    fragment, "blank", or "no_cv_result" is filtered.
+    """
+    if not key or not isinstance(key, str):
+        return False
+    if "no_cv_result" in key or ";" in key:
+        return False
+    # UUID patterns: 8-4-4-4-12 hex chars with dashes
+    import re
+    if re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-", key):
+        return False
+    if key == "blank" or key == "unknown":
+        return False
+    return True
+
+
 def _aggregate_to_property(db, pj, detections):
     """Per-property aggregation: auto-create Cameras, derive Seasons from
     photo timestamps, upsert DetectionSummary rows.
@@ -162,9 +184,15 @@ def _aggregate_to_property(db, pj, detections):
     which strecker.ingest already derives).
     Seasons: one quarterly season per (property, year-quarter) of detections.
     DetectionSummary: (season_id, camera_id, species_key) is unique; sum.
+    Filters out SpeciesNet's "blank" / "no_cv_result" internal classes.
     """
     import json as _json
     from db.models import Camera, Season, Upload, DetectionSummary
+
+    # Strip SpeciesNet "blank"/"no_cv_result" detections before anything
+    # else; they'd otherwise create phantom DetectionSummary rows that
+    # confuse the dashboard.
+    detections = [d for d in detections if _is_real_species_key(d.species_key)]
 
     if not detections:
         return
