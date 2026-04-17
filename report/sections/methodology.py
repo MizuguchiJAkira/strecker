@@ -1,220 +1,311 @@
-"""Methodology section — the trust-building page.
+"""Methodology appendix — bound into every parcel report.
 
-An actuary will flip straight to this page. Being transparent about
-limitations is what makes actuaries trust you more, not less.
+A loan-review committee or external reviewer flips here to confirm the
+finding is defensible. The page mirrors docs/METHODOLOGY.md but
+compressed for a two-page PDF spread:
 
-Cites: Kolowski & Forrester 2017, Dussert et al. 2025,
-Parsons et al. 2017, Broadley et al. 2020, Mac Aodha et al. 2019,
-Johnston et al. 2021, Sara Beery (MIT CSAIL).
+  Page 1 — What we measure, REM density, placement-bias correction
+  Page 2 — Confidence intervals, recommendation logic, limitations,
+           references.
+
+Cites: Rowcliffe 2008, Mayer & Brisbin 2009, Kolowski & Forrester 2017,
+Cassel-Sarndal-Wretman 1976, Hájek 1971, Cole & Hernán 2008,
+Kish 1965, Anderson 2016, Kay 2017, Webb 2010.
 """
 
-from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    CondPageBreak, KeepTogether, Paragraph, Spacer, Table, TableStyle,
+    CondPageBreak, Paragraph, Spacer, Table, TableStyle,
 )
 
 from report.styles import (
-    BRAND_NAVY, CONTENT_WIDTH, FONTS, TEXT_PRIMARY, TEXT_SECONDARY,
-    STYLE_H2, STYLE_BODY, STYLE_BODY_SMALL,
-    STYLE_CITATION, STYLE_FOOTNOTE, section_bar,
+    CONTENT_WIDTH, STYLE_H2, STYLE_BODY, STYLE_CITATION, section_bar,
 )
 
 # ── Compact local styles ──
-# Methodology runs long. Tightened leading + spacing here so the
-# section body packs onto one page and Limitations + References
-# get a clean, balanced second page.
 _H2_TIGHT = ParagraphStyle(
-    "H2Methodology",
-    parent=STYLE_H2,
-    fontSize=12, leading=15,
-    spaceBefore=9, spaceAfter=3,
+    "H2Methodology", parent=STYLE_H2,
+    fontSize=12, leading=15, spaceBefore=9, spaceAfter=3,
 )
 
 _BODY_TIGHT = ParagraphStyle(
-    "BodyMethodology",
-    parent=STYLE_BODY,
-    fontSize=9, leading=13,
-    spaceAfter=4,
+    "BodyMethodology", parent=STYLE_BODY,
+    fontSize=9, leading=13, spaceAfter=4,
+)
+
+_BODY_MONO = ParagraphStyle(
+    "BodyMethodologyMono", parent=_BODY_TIGHT,
+    fontName="Courier", fontSize=9, leading=12,
+    leftIndent=14, spaceAfter=6,
 )
 
 _CITATION_TIGHT = ParagraphStyle(
-    "CitationTight",
-    parent=STYLE_CITATION,
+    "CitationTight", parent=STYLE_CITATION,
     fontSize=7.5, leading=10,
     leftIndent=10, firstLineIndent=-10,
     spaceAfter=5,
 )
 
 
-def render(assessment: dict) -> list:
-    """Return flowables for the methodology page."""
-    elements = []
+def _factor_table() -> Table:
+    """Per-species placement-context inflation factors used for Method 1.
 
-    elements.append(section_bar("Methodology", CONTENT_WIDTH))
-    elements.append(Spacer(1, 0.18 * inch))
+    Mirrors bias.placement_ipw.DEFAULT_INFLATION_FACTORS so what the
+    PDF shows is what the pipeline actually applied.
+    """
+    data = [
+        ["Context",   "Feral hog", "WT deer", "Coyote"],
+        ["feeder",    "10.0\u00d7", "4.0\u00d7", "1.5\u00d7"],
+        ["food_plot", "6.0\u00d7",  "3.0\u00d7", "1.2\u00d7"],
+        ["water",     "3.0\u00d7",  "2.0\u00d7", "2.0\u00d7"],
+        ["trail",     "4.0\u00d7",  "3.0\u00d7", "5.0\u00d7"],
+        ["random",    "1.0\u00d7",  "1.0\u00d7", "1.0\u00d7"],
+        ["other",     "1.5\u00d7",  "1.2\u00d7", "1.3\u00d7"],
+    ]
+    col_w = [1.2 * inch, 0.95 * inch, 0.95 * inch, 0.95 * inch]
+    t = Table(data, colWidths=col_w, hAlign="LEFT")
+    t.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING",    (0, 0), (-1, -1), 2),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, (0.4, 0.4, 0.4)),
+        ("BACKGROUND", (0, 0), (-1, 0), (0.95, 0.95, 0.95)),
+    ]))
+    return t
+
+
+def render(assessment: dict) -> list:
+    """Return flowables for the methodology appendix."""
+    el = []
+
+    el.append(section_bar("Methodology", CONTENT_WIDTH))
+    el.append(Spacer(1, 0.18 * inch))
+
+    # ── Outputs ──
+    el.append(Paragraph("What This Report Measures", _H2_TIGHT))
+    el.append(Paragraph(
+        "Three pipeline outputs, in order of methodological primacy: "
+        "<b>(1) detection frequency</b>, the raw events per camera-day "
+        "\u2014 a relative abundance index requiring no movement "
+        "assumption; <b>(2) density</b> in animals per square kilometer, "
+        "derived from the bias-adjusted detection frequency through "
+        "the Random Encounter Model (Rowcliffe et al. 2008); and "
+        "<b>(3) tier</b> (Low / Moderate / Elevated / Severe), the "
+        "binary-decision-grade classification per Mayer &amp; Brisbin "
+        "(2009) hog-density bins. The composite Exposure Score (0\u2013100) "
+        "is a piecewise-linear transform of density anchored on the "
+        "tier cutoffs for visual legibility on a single gauge.",
+        _BODY_TIGHT))
+    el.append(Paragraph(
+        "<b>Damage dollars are not a pipeline output.</b> The "
+        "supplementary annual-loss projection on the cover page is "
+        "scaled from third-party per-hog damage figures (Anderson "
+        "et al. 2016) \u00d7 parcel area \u00d7 crop modifier and is "
+        "labeled MODELED PROJECTION throughout. A loan committee "
+        "with an internal damage model should consume the density "
+        "and rate above and replace our dollar figure with their own.",
+        _BODY_TIGHT))
 
     # ── Detection pipeline ──
-    elements.append(Paragraph("Detection Pipeline", _H2_TIGHT))
-    elements.append(Paragraph(
-        "Camera trap images are processed through a two-stage "
-        "classification pipeline. Stage 1 uses Microsoft MegaDetector "
-        "v5 to locate animals in each frame (minimum confidence "
-        "threshold: 0.3). Stage 2 applies Google SpeciesNet for "
-        "taxonomic classification of detected animals. Both models "
-        "are pre-trained on large-scale camera trap datasets and "
-        "deployed without site-specific fine-tuning to maintain "
-        "generalization across deployment regions.",
+    el.append(Paragraph("Detection Pipeline", _H2_TIGHT))
+    el.append(Paragraph(
+        "Camera-trap images are processed in two stages: Microsoft "
+        "MegaDetector v5 locates animals (minimum confidence 0.3); "
+        "Google SpeciesNet performs taxonomic classification. Both "
+        "models are deployed without site-specific fine-tuning. Raw "
+        "detections are grouped into independent events using a "
+        "two-threshold scheme: photos within 60 seconds of one "
+        "another from the same camera/species form a trigger burst, "
+        "and bursts within 30 minutes of one another consolidate into "
+        "one event. The 30-minute independence threshold is standard "
+        "in camera-trap ecology and prevents repeat-counting of the "
+        "same individual. All metrics in this report use independent "
+        "event counts, never raw photo counts.",
         _BODY_TIGHT))
 
-    # ── Event grouping ──
-    elements.append(Paragraph("Event Independence", _H2_TIGHT))
-    elements.append(Paragraph(
-        "Raw detections are grouped into independent events using a "
-        "two-threshold system. First, photos within 60 seconds of "
-        "each other from the same camera and species are grouped as "
-        "a single trigger burst. Second, bursts separated by fewer "
-        "than 30 minutes are consolidated into one independent event. "
-        "This 30-minute independence threshold is standard in camera "
-        "trap ecology and prevents repeated counting of the same "
-        "individual. All metrics in this report use independent event "
-        "counts, never raw photo counts.",
+    # ── REM density ──
+    el.append(Paragraph("Density Estimation (REM)", _H2_TIGHT))
+    el.append(Paragraph(
+        "Density is estimated using the Random Encounter Model "
+        "(Rowcliffe et al. 2008), which does not require individual "
+        "identification \u2014 essential for hogs and deer at distance, "
+        "where natural marks are unreliable at population scale:",
+        _BODY_TIGHT))
+    el.append(Paragraph(
+        "D = (y / t) \u00d7 \u03c0 / (v \u00d7 r \u00d7 (2 + \u03b8))",
+        _BODY_MONO))
+    el.append(Paragraph(
+        "where <i>y/t</i> is detections per camera-day, <i>v</i> is "
+        "the species-specific mean daily travel distance, <i>r</i> is "
+        "the camera detection radius (0.015 km), and <i>\u03b8</i> is "
+        "the camera detection angle (0.7 rad). Daily-distance values "
+        "are sourced per species from the literature: 6.0 km/day for "
+        "feral hog (Kay et al. 2017), 1.5 km/day for white-tailed "
+        "deer (Webb et al. 2010), 10.0 km/day for coyote (Andelt "
+        "1985). Species without a published <i>v</i> are reported as "
+        "detection-rate index only, with the density estimate omitted.",
         _BODY_TIGHT))
 
-    # ── Confidence calibration ──
-    elements.append(Paragraph("Confidence Calibration", _H2_TIGHT))
-    elements.append(Paragraph(
-        "Raw classifier confidence scores are calibrated using "
-        "temperature scaling (Dussert et al. 2025), which applies "
-        "a learned temperature parameter (T = 1.08) to soften "
-        "overconfident predictions by 5\u201310%. Calibrated "
-        "probabilities more accurately reflect true classification "
-        "accuracy. Binary softmax entropy is computed for each "
-        "prediction; detections exceeding the entropy threshold "
-        "(0.59 nats) are flagged for human review. Temporal priors "
-        "(Mac Aodha et al. 2019) further refine predictions by "
-        "incorporating species-specific circadian activity patterns.",
+    # ── Placement bias correction ──
+    el.append(Paragraph("Placement-Bias Correction", _H2_TIGHT))
+    el.append(Paragraph(
+        "Cameras placed at feeders, trails, water, or food plots "
+        "violate REM\u2019s movement-independence assumption. "
+        "Kolowski &amp; Forrester (2017) document detection inflation "
+        "of 1.4\u20139.7\u00d7 over random placement depending on "
+        "species and context. The pipeline applies two complementary "
+        "corrections to the per-camera detection rate <i>before</i> "
+        "it enters REM, and reports both alongside the raw rate.",
+        _BODY_TIGHT))
+    el.append(Paragraph(
+        "<b>Method 1 \u2014 Literature-prior ratio adjustment "
+        "(primary).</b> For each camera, deflate the observed rate "
+        "by the per-species inflation factor for its placement "
+        "context, then average across cameras. Factor table (mirrors "
+        "the values applied by the pipeline):",
+        _BODY_TIGHT))
+    el.append(_factor_table())
+    el.append(Spacer(1, 0.05 * inch))
+    el.append(Paragraph(
+        "<b>Method 2 \u2014 Hájek IPW with empirical propensities "
+        "(diagnostic).</b> The textbook IPW estimator (Hájek 1971; "
+        "Cassel\u2013S\u00e4rndal\u2013Wretman 1976) reweights to a "
+        "target placement-context distribution (default: uniform "
+        "across observed contexts). Reported alongside the primary "
+        "method for transparency; not fed into REM. The two methods "
+        "agree closely when the deployment is balanced and diverge "
+        "when one context dominates \u2014 which is exactly the case "
+        "where bias correction matters most.",
         _BODY_TIGHT))
 
-    # ── Bias correction ──
-    elements.append(Paragraph("Placement Bias Correction", _H2_TIGHT))
-    elements.append(Paragraph(
-        "Camera traps are typically placed near feeders, water "
-        "sources, trails, and food plots \u2014 locations chosen to "
-        "maximize game detection. Kolowski &amp; Forrester (2017) "
-        "demonstrated that trail and feeder cameras detect 9.7\u00d7 "
-        "more animals than randomly placed cameras. This placement "
-        "bias inflates naive detection rates.",
+    # ── Page break before CI / limitations ──
+    el.append(CondPageBreak(10 * inch))
+
+    # ── Confidence intervals ──
+    el.append(Paragraph("Confidence Intervals", _H2_TIGHT))
+    el.append(Paragraph(
+        "95% confidence intervals are computed by nonparametric "
+        "bootstrap over cameras (1000 iterations, the design\u2019s "
+        "primary stochastic source per Rowcliffe 2012). Each "
+        "iteration also draws a perturbed daily-distance value "
+        "<i>v\u2019 ~ N(v, sd)</i> truncated to [0.5\u00b7v, 1.5\u00b7v] "
+        "to propagate inter-individual movement variability without "
+        "letting physically implausible draws inflate the upper tail. "
+        "The bias-correction weights are recomputed on each bootstrap "
+        "resample so IPW uncertainty also feeds into the CI.",
         _BODY_TIGHT))
-    elements.append(Paragraph(
-        "We correct for this bias using inverse probability weighting "
-        "(IPW) adapted from the causal inference literature (Robins, "
-        "Hern\u00e1n &amp; Brumback 2000). A logistic regression "
-        "propensity model estimates P(camera placed here | landscape "
-        "covariates) for each camera location relative to 500 "
-        "uniformly sampled reference points within the parcel "
-        "boundary. Covariates include distance to water, distance to "
-        "road, slope, canopy cover, relative elevation, distance to "
-        "habitat edge, land cover class, and aspect. Placement "
-        "context labels (feeder, trail, etc.) are excluded from the "
-        "model to prevent trivial separation.",
-        _BODY_TIGHT))
-    elements.append(Paragraph(
-        "Cameras in biased locations (near feeders, water) receive "
-        "lower weights; cameras in landscape-representative locations "
-        "receive higher weights. Weights are stabilized by the "
-        "marginal probability of camera placement and capped at an "
-        "8:1 max-to-min ratio to prevent extreme influence from any "
-        "single camera. This approach follows the eBird framework "
-        "(Johnston et al. 2021) for correcting spatial sampling bias "
-        "in citizen science biodiversity data.",
+    el.append(Paragraph(
+        "<b>Diagnostics:</b> Kish (1965) effective sample size "
+        "ESS = (\u03a3w)\u00b2 / \u03a3(w\u00b2), and the maximum-"
+        "weight ratio max(w)/mean(w). Caveats fire automatically when "
+        "ESS &lt; n/2, max-weight ratio &gt; 5\u00d7 (Cole &amp; "
+        "Hern\u00e1n 2008 stabilization threshold), or no random-"
+        "placement cameras anchor the deployment.",
         _BODY_TIGHT))
 
-    # ── Regional accuracy ──
-    elements.append(Paragraph("Regional Accuracy Validation", _H2_TIGHT))
-    elements.append(Paragraph(
-        "Classification accuracy cannot be reliably estimated from "
-        "out-of-region validation data (Beery, MIT CSAIL). Actual "
-        "accuracy depends on local species composition, habitat "
-        "structure, and camera placement \u2014 factors that vary "
-        "between deployments. Our regional accuracy metrics are "
-        "derived from hunter-verified corrections within each "
-        "deployment region: hunters review flagged detections and "
-        "correct misclassifications, providing ground-truth labels "
-        "specific to the monitored landscape.",
+    # ── Recommendation logic ──
+    el.append(Paragraph("Recommendation Logic", _H2_TIGHT))
+    el.append(Paragraph(
+        "Per species per survey period the pipeline emits one of "
+        "three flags:",
         _BODY_TIGHT))
+    rec_data = [
+        ["Condition", "Recommendation"],
+        ["< 100 camera-days OR < 20 events",
+            "insufficient_data"],
+        ["CI upper / lower ratio > 1.5",
+            "recommend_supplementary_survey"],
+        ["Otherwise",
+            "sufficient_for_decision"],
+    ]
+    rec_t = Table(rec_data,
+                  colWidths=[3.2 * inch, 2.6 * inch],
+                  hAlign="LEFT")
+    rec_t.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING",    (0, 0), (-1, -1), 2),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, (0.4, 0.4, 0.4)),
+        ("BACKGROUND", (0, 0), (-1, 0), (0.95, 0.95, 0.95)),
+    ]))
+    el.append(rec_t)
 
-    # ── Critical caveat ──
-    # Force Limitations + References onto a fresh page so the
-    # "methodology body" and "caveats + citations" read as two
-    # deliberate spreads rather than a broken overflow.
-    elements.append(CondPageBreak(10 * inch))
-    elements.append(Paragraph("Limitations", _H2_TIGHT))
-    elements.append(Paragraph(
-        "<b>Detection frequency is a relative abundance index, not "
-        "absolute population density.</b> Conversion to absolute "
-        "density requires site-specific calibration. Parsons et al. "
-        "(2017) demonstrated R\u00b2 = 0.80 correlation between "
-        "camera trap relative abundance indices and true density "
-        "under standardized protocols. However, Broadley et al. "
-        "(2020) identified that density-dependent movement patterns "
-        "can cause cameras to underestimate population declines by "
-        "up to 30% \u2014 as populations decline, remaining animals "
-        "expand their home ranges, maintaining camera encounter "
-        "rates despite reduced abundance. Our Matagorda Bay "
-        "calibration program addresses this through paired camera "
-        "trap and field survey validation.",
-        _BODY_TIGHT))
-    elements.append(Paragraph(
-        "Damage projections are model-based estimates, not observed "
-        "losses. Actual damage depends on land use, management "
-        "practices, crop type, and seasonal patterns not fully "
-        "captured by detection frequency alone. Confidence intervals "
-        "are provided to reflect uncertainty proportional to data "
-        "quality.",
+    # ── Limitations ──
+    el.append(Spacer(1, 0.10 * inch))
+    el.append(Paragraph("Limitations", _H2_TIGHT))
+    el.append(Paragraph(
+        "<b>Detection frequency is a relative abundance index.</b> "
+        "Conversion to absolute density via REM rests on the daily-"
+        "distance values and detection-cone parameters above; both "
+        "carry inter-region uncertainty not fully captured by the "
+        "bootstrap CI. <b>Damage projections are model-based, not "
+        "observed losses.</b> They are scaled from third-party per-"
+        "hog figures and a crop-class modifier, and should not be "
+        "treated as a primary pipeline output. <b>Tier classification "
+        "is defined for feral hog only at v1.</b> Other species "
+        "appear with detection rate and density (where v is "
+        "available) but no tier; tier extension to deer and coyote "
+        "requires per-species cutoff literature review.",
         _BODY_TIGHT))
 
     # ── References (2-column) ──
-    elements.append(Spacer(1, 0.12 * inch))
-    elements.append(Paragraph("References", _H2_TIGHT))
+    el.append(Spacer(1, 0.10 * inch))
+    el.append(Paragraph("References", _H2_TIGHT))
 
     refs = [
-        "Broadley, K. et al. (2020). Density-dependent space use "
-        "affects interpretation of camera trap detection rates. "
-        "Ecology and Evolution, 9(24), 14031-14041.",
+        "Andelt, W.F. (1985). Behavioral ecology of coyotes in south "
+        "Texas. Wildlife Monographs, 94, 3\u201345.",
 
-        "Dussert, G. et al. (2025). Confidence calibration for "
-        "camera trap species classification: temperature scaling "
-        "outperforms Platt scaling across taxa. Methods in Ecology "
-        "and Evolution.",
+        "Anderson, A. et al. (2016). Economic estimates of feral "
+        "swine damage and control in 11 US states. Crop Protection, "
+        "89, 89\u201394.",
 
-        "Johnston, A. et al. (2021). Analytical guidelines to "
-        "increase the value of community science data: an eBird "
-        "case study. Diversity and Distributions, 27(7), 1265-1277.",
+        "Cassel, C.M., S\u00e4rndal, C.E. &amp; Wretman, J.H. (1976). "
+        "Some results on generalized difference estimation. "
+        "Biometrika, 63, 615\u2013620.",
+
+        "Cole, S.R. &amp; Hern\u00e1n, M.A. (2008). Constructing "
+        "inverse probability weights for marginal structural models. "
+        "Am. J. Epidemiology, 168, 656\u2013664.",
+
+        "H\u00e1jek, J. (1971). Discussion of \u201cAn essay on the "
+        "logical foundations of survey sampling, part one\u201d by D. "
+        "Basu. Foundations of Statistical Inference.",
+
+        "Kay, S.L. et al. (2017). Quantifying drivers of wild pig "
+        "movement across multiple spatial and temporal scales. "
+        "Movement Ecology, 5, 14.",
+
+        "Kish, L. (1965). Survey Sampling. Wiley.",
 
         "Kolowski, J.M. &amp; Forrester, T.D. (2017). Camera trap "
         "placement and the potential for bias due to trails and "
-        "other features. PLOS ONE, 12(10), e0186679.",
+        "other features. PLOS ONE, 12, e0186679.",
 
-        "Mac Aodha, O. et al. (2019). Presence-only geographical "
-        "priors for fine-grained recognition. ICCV 2019.",
+        "Mayer, J.J. &amp; Brisbin, I.L. (2009). Wild Pigs: Biology, "
+        "Damage, Control Techniques and Management. Savannah River "
+        "National Laboratory.",
 
-        "Parsons, A.W. et al. (2017). Mammal communities are "
-        "larger and more diverse in moderately developed areas. "
-        "eLife, 7, e38012.",
+        "Rowcliffe, J.M., Field, J., Turvey, S.T. &amp; Carbone, C. "
+        "(2008). Estimating animal density using camera traps "
+        "without the need for individual recognition. J. Appl. "
+        "Ecol., 45, 1228\u20131236.",
 
-        "Robins, J.M., Hern\u00e1n, M.A. &amp; Brumback, B. "
-        "(2000). Marginal structural models and causal inference "
-        "in epidemiology. Epidemiology, 11(5), 550-560.",
+        "Rowcliffe, J.M. et al. (2012). Bias in estimating animal "
+        "travel distance: the effect of sampling frequency. "
+        "Methods in Ecol. Evol., 3, 653\u2013662.",
+
+        "Webb, S.L., Hewitt, D.G. &amp; Hellickson, M.W. (2010). "
+        "Survival and cause-specific mortality of mature male "
+        "white-tailed deer. J. Wildlife Mgmt., 74, 1416\u20131421.",
     ]
 
-    # Split refs across two balanced columns. 7 refs → 4 left, 3 right.
     half = (len(refs) + 1) // 2
     left_col = [Paragraph(r, _CITATION_TIGHT) for r in refs[:half]]
     right_col = [Paragraph(r, _CITATION_TIGHT) for r in refs[half:]]
-
-    # Pad the shorter column so the Table cells align at the top.
     while len(right_col) < len(left_col):
         right_col.append(Spacer(1, 0.01 * inch))
 
@@ -233,6 +324,6 @@ def render(assessment: dict) -> list:
         ("TOPPADDING", (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    elements.append(refs_table)
+    el.append(refs_table)
 
-    return elements
+    return el
