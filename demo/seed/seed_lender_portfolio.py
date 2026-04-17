@@ -1,12 +1,17 @@
 """Seed a full lender portfolio: Farm Credit of Central Texas with 5 parcels
 spanning the exposure-tier range. Drives the YC-partner demo.
 
-Parcels (by intent):
-  1. Edwards Plateau Ranch      2,340 ac sorghum   Elevated  (existing, rewired)
-  2. Riverbend Farm               650 ac corn      Severe    (new)
-  3. Highland Meadow Ranch      4,800 ac pasture   Low       (new)
-  4. Oak Ridge Orchards           180 ac mixed     Moderate  (new)
-  5. Prairie Creek Property     3,200 ac rangeland pending   (new, no season)
+Parcels (by intent — post-IPW tier targets):
+  1. Edwards Plateau Ranch      2,340 ac sorghum   Elevated  (existing + 1 random cam added here)
+  2. Riverbend Farm               650 ac corn      Severe    (2 biased + 2 random cams)
+  3. Highland Meadow Ranch      4,800 ac pasture   Low       (water + random)
+  4. Oak Ridge Orchards           180 ac peanut    Moderate  (trail + random)
+  5. Prairie Creek Property     3,200 ac rangeland pending   (no season)
+
+Camera deployments include a "random" placement_context anchor on every
+non-Pending parcel so the Kolowski 2017 IPW correction has an unbiased
+reference. Without this, all-biased deployments deflate ~4-5× under the
+literature-prior factor table and tier diversity collapses to Low.
 
 Also:
   - Elevates jonahakiracheng@gmail.com to is_owner=True so the /lender/
@@ -74,6 +79,12 @@ PARCELS = [
             "name": "Spring 2026", "start": date(2026, 2, 1), "end": date(2026, 3, 31),
         },
         # Heavy hog pressure on a small corn parcel. Density >10/km² => Severe.
+        # Deployment design: 2 cameras at high-utility features (food_plot,
+        # water) for hog detection, plus 2 cameras placed at random GPS
+        # within the parcel for IPW bias-correction calibration. The
+        # Kolowski 2017 inflation factors deflate the biased-cam rates;
+        # the random cameras anchor the adjusted rate against a
+        # placement-bias-free reference.
         "cameras": [
             {
                 "label": "CAM-RB-CORN-01", "name": "Corn field north edge",
@@ -104,6 +115,28 @@ PARCELS = [
                                 "hourly": hourly((22,24,3),(0,4,3)),
                                 "first_seen": datetime(2026,2,9,22,18,41),
                                 "last_seen":  datetime(2026,3,28,2,44,22)},
+                },
+            },
+            {
+                "label": "CAM-RB-RAND-01", "name": "Random GPS sample, southeast quadrant",
+                "lat": 30.591, "lon": -96.474, "placement_context": "random",
+                "camera_model": "Reconyx HP2X", "installed_date": date(2026, 1, 20),
+                "species": {
+                    "feral_hog": {"photos": 326, "events": 95, "conf": 0.91,
+                                  "hourly": hourly((20,24,5),(0,6,5)),
+                                  "first_seen": datetime(2026,2,2,21,55,10),
+                                  "last_seen":  datetime(2026,3,30,5,40,18)},
+                },
+            },
+            {
+                "label": "CAM-RB-RAND-02", "name": "Random GPS sample, northwest quadrant",
+                "lat": 30.612, "lon": -96.512, "placement_context": "random",
+                "camera_model": "Reconyx HP2X", "installed_date": date(2026, 1, 20),
+                "species": {
+                    "feral_hog": {"photos": 384, "events": 110, "conf": 0.92,
+                                  "hourly": hourly((21,24,5),(0,7,5)),
+                                  "first_seen": datetime(2026,2,3,22,12,2),
+                                  "last_seen":  datetime(2026,3,31,4,18,55)},
                 },
             },
         ],
@@ -174,6 +207,7 @@ PARCELS = [
         },
         # Moderate hog density on a small peanut parcel -> dollar projection
         # scales because of the 1.4x crop modifier even at moderate density.
+        # Trail camera + 1 random for IPW calibration.
         "cameras": [
             {
                 "label": "CAM-OR-EAST", "name": "East orchard edge",
@@ -188,6 +222,17 @@ PARCELS = [
                                 "hourly": hourly((21,24,3),(0,4,3)),
                                 "first_seen": datetime(2026,2,9,22,18,0),
                                 "last_seen":  datetime(2026,3,29,2,22,18)},
+                },
+            },
+            {
+                "label": "CAM-OR-RAND-01", "name": "Random GPS sample, west block",
+                "lat": 30.288, "lon": -98.982, "placement_context": "random",
+                "camera_model": "Reconyx HP2X", "installed_date": date(2026, 1, 19),
+                "species": {
+                    "feral_hog": {"photos": 81, "events": 25, "conf": 0.88,
+                                  "hourly": hourly((21,24,3),(0,5,3)),
+                                  "first_seen": datetime(2026,2,6,23,18,40),
+                                  "last_seen":  datetime(2026,3,29,4,2,11)},
                 },
             },
         ],
@@ -250,6 +295,55 @@ def main():
     """, (lender_id, "sorghum"))
     if cur.rowcount:
         print(f"  Attached Edwards Plateau Ranch (id=1) to lender, crop=sorghum")
+
+    # 3a. Add a random-placement camera to Edwards Plateau so the IPW
+    # bias correction has an unbiased anchor (otherwise all 3 existing
+    # cameras are at feeder/trail and the literature-prior factors
+    # deflate the rate ~5×, knocking the parcel from Elevated to Low).
+    # Idempotent via the CAM-EP-RAND-* label prefix.
+    cur.execute("""
+        DELETE FROM detection_summaries
+        WHERE camera_id IN (SELECT id FROM cameras
+                            WHERE property_id=1
+                              AND camera_label LIKE 'CAM-EP-RAND-%')
+    """)
+    cur.execute("""
+        DELETE FROM cameras
+        WHERE property_id=1 AND camera_label LIKE 'CAM-EP-RAND-%'
+    """)
+    cur.execute("""
+        SELECT id FROM seasons WHERE property_id=1
+        ORDER BY start_date DESC LIMIT 1
+    """)
+    row = cur.fetchone()
+    if row:
+        ep_season_id = row[0]
+        cur.execute("""
+            INSERT INTO cameras (property_id, camera_label, name, lat, lon,
+                                 placement_context, camera_model, installed_date,
+                                 is_active, created_at, updated_at)
+            VALUES (1, 'CAM-EP-RAND-01', 'Random GPS sample, central plateau',
+                    30.51, -99.74, 'random', 'Reconyx HP2X',
+                    %s, TRUE, NOW(), NOW())
+            RETURNING id
+        """, (date(2026, 1, 18),))
+        ep_rand_cam_id = cur.fetchone()[0]
+        ep_h24 = hourly((20, 24, 5), (0, 6, 5))
+        cur.execute("""
+            INSERT INTO detection_summaries
+                (season_id, camera_id, species_key,
+                 total_photos, independent_events, avg_confidence,
+                 first_seen, last_seen, buck_count, doe_count,
+                 peak_hour, hourly_distribution, created_at)
+            VALUES (%s,%s,'feral_hog', 348, 100, 0.91,
+                    %s, %s, 0, 0, %s, %s, NOW())
+        """, (ep_season_id, ep_rand_cam_id,
+              datetime(2026, 2, 3, 21, 14, 22),
+              datetime(2026, 3, 30, 5, 22, 8),
+              ep_h24.index(max(ep_h24)),
+              json.dumps(ep_h24)))
+        print(f"  Added CAM-EP-RAND-01 to Edwards Plateau "
+              f"(season={ep_season_id}, hog events=100)")
 
     # 4. Wipe + recreate the net-new parcels idempotently.
     #    They're identified by the synthetic owner emails we created.
