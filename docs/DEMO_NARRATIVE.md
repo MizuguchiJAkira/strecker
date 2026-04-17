@@ -32,7 +32,7 @@
 > because Farm Credit told them their loan renewal depends on a current
 > ecological assessment.
 
-*[Click into TX-BRA-2026-00008 — Riverbend Farm. Big headline:
+*[Click into TX-BRA-2026-00012 — Riverbend Farm. Big headline:
 "Feral Hog Exposure Score: 83.7 / 100 — Severe". 0–100 bar,
 gradient from green to red, filled to the upper right.]*
 
@@ -104,11 +104,11 @@ chips and the "Elevated → Severe" delta line are on camera.]*
 
 | Parcel                    | Crop      | Acreage | Tier      | Rate (ev/cam-day) | Density (/km²) | Modeled $/yr | Notes |
 |---------------------------|-----------|--------:|-----------|------------------:|---------------:|-------------:|-------|
-| TX-BRA-2026-00008 Riverbend Farm      | corn      | 650   | Severe    | 1.526 / 1.042      | 13.47          | $22,955      | Small corn parcel, heavy hog pressure. Headline case. |
+| TX-BRA-2026-00012 Riverbend Farm      | corn      | 650   | Severe    | 1.526 / 1.042      | 13.47          | $22,955      | Small corn parcel, heavy hog pressure. Headline case. |
 | TX-KIM-2026-00001 Edwards Plateau Ranch | sorghum  | 2,340 | Elevated  | 0.914 / 0.494      | 6.38           | $31,812      | Mid-size parcel at the decision boundary. |
-| TX-GIL-2026-00010 Oak Ridge Orchards | peanut    | 180   | Moderate  | 0.345 / 0.248      | 3.20           | $1,323       | Demonstrates crop-modifier sensitivity (peanut 1.4×). |
-| TX-REA-2026-00009 Highland Meadow Ranch | pasture | 4,800 | Low       | 0.043 / 0.026      | 0.33           | $1,315       | Big parcel, low density, low damage — "the healthy case." |
-| TX-MEN-2026-00011 Prairie Creek Property | rangeland | 3,200 | Pending   | —                  | —              | —            | Just onboarded; demonstrates "survey in progress" state. |
+| TX-GIL-2026-00014 Oak Ridge Orchards | peanut    | 180   | Moderate  | 0.345 / 0.248      | 3.20           | $1,323       | Demonstrates crop-modifier sensitivity (peanut 1.4×). |
+| TX-REA-2026-00013 Highland Meadow Ranch | pasture | 4,800 | Low       | 0.043 / 0.026      | 0.33           | $1,315       | Big parcel, low density, low damage — "the healthy case." |
+| TX-MEN-2026-00015 Prairie Creek Property | rangeland | 3,200 | Pending   | —                  | —              | —            | Just onboarded; demonstrates "survey in progress" state. |
 
 Rate column is **raw / bias-adjusted** events per camera-day; the
 adjusted value is the IPW-corrected rate (Kolowski & Forrester 2017)
@@ -211,5 +211,5 @@ underwriting guidance, the switching cost for a lender is non-trivial.
 - `docs/METHODOLOGY.md` — one-pager for the loan-review-committee / ecologist question
 - `docs/ROADMAP.md` — in case a partner asks "what do you build in week one post-funding"
 - The JSON API response for Riverbend Farm at
-  `/lender/api/fcct/parcel/8/exposure` — the compliance-ready format
+  `/lender/api/fcct/parcel/12/exposure` — the compliance-ready format
   that imports into the lender's internal underwriting system.
