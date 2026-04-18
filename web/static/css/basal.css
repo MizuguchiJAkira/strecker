@@ -132,6 +132,22 @@ body.basal a:hover { text-decoration: underline; text-underline-offset: 4px; tex
 .b-body { font-size: 15px; line-height: 1.6; color: var(--bone-70); }
 .b-small { font-size: 13px; color: var(--bone-70); }
 .b-mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: -0.01em; }
+/*
+  Inline numerical emphasis inside prose. Inherits size + family from
+  its parent so a $40,000 inside a 19px Inter lede reads as part of
+  the sentence, not as an interrupting terminal fragment. Tabular-
+  nums + tighter tracking gives it the "measurement value" character
+  without the font-family / font-size downshift of .b-mono.
+*/
+.b-num {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--bone);
+  padding: 0 0.05em;
+}
 .b-italic { font-style: italic; }
 
 /* ── layout ──────────────────────────────────────────────────── */

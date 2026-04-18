@@ -46,7 +46,8 @@
   #}
   <header class="b-hero">
     <div class="b-hero-bg">
-      <video autoplay muted loop playsinline preload="metadata"
+      <video autoplay muted loop playsinline preload="auto"
+             disablepictureinpicture
              poster="{{ url_for('static', filename='marketing/hero-poster.jpg') }}">
         <source src="{{ url_for('static', filename='hero-trailcam.webm') }}" type="video/webm">
       </video>
@@ -71,10 +72,10 @@
         <p class="b-lede" style="margin-top: 28px;">
           Farm Credit branches and ag banks hold billions in loans secured
           by productive farmland. Their ecological due-diligence today is a
-          <span class="b-mono">$40,000</span> one-shot field survey that's stale the day
+          <span class="b-num">$40,000</span> one-shot field survey that's stale the day
           it lands. We turn landowner trail-cam uploads into audit-traceable
           Nature Exposure Reports — refreshable, methodology-defensible,
-          <span class="b-mono">25× cheaper.</span>
+          <span class="b-num">25× cheaper.</span>
         </p>
         <div class="b-hero-ctas">
           <a class="b-cta" href="/lender/fcct/">See live parcel<span aria-hidden="true">→</span></a>
@@ -283,7 +284,7 @@
         {# right column — trail-cam snippet + modeled $ #}
         <div class="b-stack">
           <div class="b-trailcam" style="aspect-ratio: 4/3;">
-            <video autoplay muted loop playsinline preload="metadata">
+            <video autoplay muted loop playsinline preload="auto" disablepictureinpicture>
               <source src="{{ url_for('static', filename='hero-trailcam-elk-short.webm') }}" type="video/webm">
             </video>
             <span class="tc-bracket tl"></span>
@@ -446,16 +447,41 @@
     </div>
   </footer>
 
-  {# small reveal script — progressive enhancement #}
+  {# progressive enhancement — reveal-on-scroll + autoplay safety net #}
   <script>
     (function(){
-      if (!('IntersectionObserver' in window)) return;
-      const io = new IntersectionObserver(entries => {
-        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
-      }, { threshold: 0.15 });
-      document.querySelectorAll('.b-section, .b-parcel-card').forEach(el => {
-        el.classList.add('b-reveal');
-        io.observe(el);
+      // Section reveal
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(entries => {
+          entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+        }, { threshold: 0.15 });
+        document.querySelectorAll('.b-section, .b-parcel-card').forEach(el => {
+          el.classList.add('b-reveal');
+          io.observe(el);
+        });
+      }
+
+      // Autoplay safety net — some Chromium contexts (embedded tabs,
+      // privacy-restricted frames) defer muted-loop autoplay. Explicitly
+      // kick playback after DOM ready, and retry once per video on first
+      // user scroll/click in case the initial attempt was still blocked.
+      const kick = (v) => {
+        if (!v || !v.paused) return;
+        const p = v.play();
+        if (p && p.catch) p.catch(() => { /* blocked — retry on interaction */ });
+      };
+      const kickAll = () => {
+        document.querySelectorAll('video').forEach(v => {
+          try { v.muted = true; v.playsInline = true; kick(v); } catch(e) {}
+        });
+      };
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        kickAll();
+      } else {
+        document.addEventListener('DOMContentLoaded', kickAll, { once: true });
+      }
+      ['scroll', 'pointerdown', 'keydown', 'touchstart'].forEach(ev => {
+        window.addEventListener(ev, kickAll, { once: true, passive: true });
       });
     })();
   </script>
