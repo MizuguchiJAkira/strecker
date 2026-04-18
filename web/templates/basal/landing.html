@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>basal — primary-source ecological data for loan-review committees</title>
+  <meta name="description" content="Methodology-defensible Nature Exposure Reports from trail-camera data. Built on Rowcliffe 2008, Kolowski 2017, Mayer-Brisbin 2009. $1,500/parcel or $5K/month unlimited.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/basal.css') }}">
+
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='marketing/basal-mark.svg') }}">
+</head>
+<body class="basal">
+
+  {# ── NAV ─────────────────────────────────────────────────── #}
+  <nav class="b-nav">
+    <div class="b-nav-inner">
+      <a class="b-brand" href="/">
+        {% include 'basal/_mark.svg' ignore missing %}
+        <span class="b-brand-text">basal<em> /</em> informatics</span>
+      </a>
+      <div class="b-nav-links">
+        <a href="#methodology">Methodology</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#sample">Sample report</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <a class="b-cta" href="/lender/fcct/">
+        See live portfolio
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </nav>
+
+  {# ── HERO ────────────────────────────────────────────────── #}
+  <header class="b-hero">
+    <div class="b-hero-grid">
+      <div>
+        <div class="b-eyebrow" style="margin-bottom: 20px;">
+          Nature-risk verification · lender-grade
+        </div>
+        <h1 class="b-display-1">
+          Primary-source<br>
+          ecological data<br>
+          for <em>loan-review<br>committees.</em>
+        </h1>
+        <p class="b-lede" style="margin-top: 28px;">
+          Farm Credit branches and ag banks hold billions in loans secured
+          by productive farmland. Their ecological due-diligence today is a
+          <span class="b-mono">$40,000</span> one-shot field survey that's stale the day
+          it lands. We turn landowner trail-cam uploads into audit-traceable
+          Nature Exposure Reports — refreshable, methodology-defensible,
+          <span class="b-mono">25× cheaper.</span>
+        </p>
+        <div class="b-hero-ctas">
+          <a class="b-cta" href="/lender/fcct/">See live parcel<span aria-hidden="true">→</span></a>
+          <a class="b-cta secondary" href="#methodology">Methodology one-pager</a>
+        </div>
+      </div>
+
+      {# right column — trail-cam frame with actual footage #}
+      <div class="b-trailcam" style="aspect-ratio: 4/3;">
+        <video autoplay muted loop playsinline preload="metadata"
+               poster="{{ url_for('static', filename='marketing/hero-poster.jpg') }}">
+          <source src="{{ url_for('static', filename='hero-trailcam.webm') }}" type="video/webm">
+        </video>
+        <span class="tc-bracket tl"></span>
+        <span class="tc-bracket tr"></span>
+        <span class="tc-bracket bl"></span>
+        <span class="tc-bracket br"></span>
+        <div class="tc-chrome">
+          <div class="tc-tl">CAM-RB-CORN-02 · IR</div>
+          <div class="tc-tr">30.584°N 96.495°W</div>
+          <span class="tc-rec"><span class="dot"></span>REC</span>
+          <div class="tc-bl">SUS SCROFA · p=0.93</div>
+          <div class="tc-br">2026-03-12 · 22:47:03</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {# ── TRUST ROW ───────────────────────────────────────────── #}
+  <section class="b-trust" aria-label="Methodology stack">
+    <div>Rowcliffe et al. <span style="opacity:.5">2008</span></div>
+    <div>Kolowski &amp; Forrester <span style="opacity:.5">2017</span></div>
+    <div>Mayer &amp; Brisbin <span style="opacity:.5">2009</span></div>
+    <div>Kay et al. <span style="opacity:.5">2017</span></div>
+    <div>Anderson et al. <span style="opacity:.5">2016</span></div>
+    <div>Cole &amp; Hernán <span style="opacity:.5">2008</span></div>
+  </section>
+
+  {# ── PIPELINE VISUALIZATION ──────────────────────────────── #}
+  <section class="b-section b-section-dark" id="pipeline">
+    <div class="b-page">
+      <div class="b-section-intro">
+        <div class="b-eyebrow">How it runs</div>
+        <h2 class="b-display-2" style="margin: 8px 0 16px; color: var(--bone);">
+          SD card in. Audit-traceable<br>
+          <em style="color: var(--forest-lit); font-style: italic;">exposure record</em> out.
+        </h2>
+        <p class="b-body" style="max-width: 640px;">
+          Every transformation is a cited method. Every intermediate value
+          persists, so an external auditor can inspect any step —
+          detection rate, bias correction, density estimate, tier call —
+          independently.
+        </p>
+      </div>
+
+      {# animated pipeline svg #}
+      <div class="b-pipeline" style="color: var(--bone);">
+        <svg viewBox="0 0 1200 280" xmlns="http://www.w3.org/2000/svg" aria-labelledby="pipeline-title">
+          <title id="pipeline-title">Detection to tier pipeline</title>
+
+          <!-- the rail -->
+          <path id="rail" class="connector" d="M 100,140 L 1100,140" />
+
+          <!-- subtle hairlines between nodes -->
+          <g stroke="currentColor" stroke-width="0.5" opacity="0.2" fill="none">
+            <line x1="100" y1="60" x2="100" y2="220"/>
+            <line x1="300" y1="60" x2="300" y2="220"/>
+            <line x1="500" y1="60" x2="500" y2="220"/>
+            <line x1="700" y1="60" x2="700" y2="220"/>
+            <line x1="900" y1="60" x2="900" y2="220"/>
+            <line x1="1100" y1="60" x2="1100" y2="220"/>
+          </g>
+
+          <!-- particles riding the rail -->
+          <circle class="particle" r="3.5" style="offset-path: path('M 100,140 L 1100,140');"/>
+          <circle class="particle p2" r="3.5" style="offset-path: path('M 100,140 L 1100,140');"/>
+          <circle class="particle p3" r="3.5" style="offset-path: path('M 100,140 L 1100,140');"/>
+          <circle class="particle p4" r="3.5" style="offset-path: path('M 100,140 L 1100,140');"/>
+
+          <!-- NODES -->
+          <g class="node" transform="translate(100,140)">
+            <circle r="22" stroke-width="1"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: currentColor;">📷</text>
+            <text class="node-label" text-anchor="middle" y="-42">01 · capture</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">Trail-cam</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">SD zip · Spaces PUT</text>
+          </g>
+
+          <g class="node" transform="translate(300,140)">
+            <circle r="22" stroke-width="1"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: currentColor;">◉</text>
+            <text class="node-label" text-anchor="middle" y="-42">02 · detect</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">MegaDetector · SpeciesNet</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">60s burst · 30min event</text>
+          </g>
+
+          <g class="node" transform="translate(500,140)">
+            <circle r="22" stroke-width="1"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: currentColor;">⟲</text>
+            <text class="node-label" text-anchor="middle" y="-42">03 · debias</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">IPW · Kolowski 2017</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">literature-prior · Hájek</text>
+          </g>
+
+          <g class="node" transform="translate(700,140)">
+            <circle r="22" stroke-width="1"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: currentColor;">∿</text>
+            <text class="node-label" text-anchor="middle" y="-42">04 · density</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">REM · Rowcliffe 2008</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">bootstrap 95% CI</text>
+          </g>
+
+          <g class="node" transform="translate(900,140)">
+            <circle r="22" stroke-width="1"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: currentColor;">▣</text>
+            <text class="node-label" text-anchor="middle" y="-42">05 · tier</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">Mayer-Brisbin 2009</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">Low · Mod · Elev · Severe</text>
+          </g>
+
+          <g class="node" transform="translate(1100,140)">
+            <circle r="22" stroke-width="1" fill="var(--forest)" stroke="var(--forest-lit)"/>
+            <text text-anchor="middle" dy="5" style="font-family: var(--font-mono); font-size: 13px; fill: var(--bone);">⎙</text>
+            <text class="node-label" text-anchor="middle" y="-42">06 · report</text>
+            <text text-anchor="middle" y="60" style="font-size: 13px; font-family: var(--font-body); fill: currentColor;">Lender-facing</text>
+            <text text-anchor="middle" y="78" style="font-size: 11px; font-family: var(--font-mono); fill: currentColor; opacity: 0.55;">HTML · JSON · PDF</text>
+          </g>
+        </svg>
+      </div>
+
+      <div style="margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2px; background: rgba(244,241,234,0.1);">
+        <div style="background: var(--ink); padding: 20px;">
+          <div class="b-eyebrow">pipeline inputs</div>
+          <div style="font-family: var(--font-mono); font-size: 13px; margin-top: 6px; color: var(--bone);">
+            detections · camera-days · placement_context · boundary
+          </div>
+        </div>
+        <div style="background: var(--ink); padding: 20px;">
+          <div class="b-eyebrow">methodology outputs</div>
+          <div style="font-family: var(--font-mono); font-size: 13px; margin-top: 6px; color: var(--bone);">
+            rate · adj_rate · density · CI · tier · score
+          </div>
+        </div>
+        <div style="background: var(--ink); padding: 20px;">
+          <div class="b-eyebrow">supplementary</div>
+          <div style="font-family: var(--font-mono); font-size: 13px; margin-top: 6px; color: var(--bone);">
+            modeled $ · crop modifier · ESA flags
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── SAMPLE PARCEL ──────────────────────────────────────── #}
+  <section class="b-section" id="sample">
+    <div class="b-page">
+      <div class="b-section-intro">
+        <div class="b-eyebrow">Worked example · Farm Credit of Central Texas</div>
+        <h2 class="b-display-2" style="margin: 8px 0 0;">
+          Riverbend Farm, Brazos Co. — <em>650 acres of corn</em>.
+        </h2>
+      </div>
+
+      <div class="b-parcel-card">
+        <div class="b-stack">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <span class="b-tier-badge tier-severe">Severe</span>
+            <span class="b-mono" style="color: var(--ink-40);">TX-BRA-2026-00012</span>
+          </div>
+
+          <div>
+            <div class="b-metric" style="margin-bottom: 28px;">
+              <span class="m-num">83.7<span style="font-size: 0.45em; color: var(--ink-40);"> / 100</span></span>
+              <span class="m-sub">Feral hog exposure score</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+              <div class="b-metric">
+                <span class="m-num" style="font-size: 32px;">13.47</span>
+                <span class="m-sub">animals/km²</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">95% CI 3.49 – 36.56</span>
+              </div>
+              <div class="b-metric">
+                <span class="m-num" style="font-size: 32px;">1.526</span>
+                <span class="m-sub">raw rate/cam-day</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">pre-bias correction</span>
+              </div>
+              <div class="b-metric">
+                <span class="m-num" style="font-size: 32px; color: var(--forest);">1.042</span>
+                <span class="m-sub">IPW-adjusted</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">rate REM consumed</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding: 18px 20px; background: var(--ink-06); border-left: 2px solid var(--forest);">
+            <div class="b-eyebrow" style="margin-bottom: 6px;">Trajectory</div>
+            <div class="b-delta">
+              <span class="b-mono">Fall 2025</span>
+              <span class="b-tier-badge tier-elevated" style="padding: 3px 9px; font-size: 10px;">Elevated</span>
+              <span style="font-family: var(--font-mono);">5.66 /km²</span>
+              <span class="arrow">⟶</span>
+              <span class="b-mono">Spring 2026</span>
+              <span class="b-tier-badge tier-severe" style="padding: 3px 9px; font-size: 10px;">Severe</span>
+              <span style="font-family: var(--font-mono);">13.47 /km²</span>
+            </div>
+            <div class="b-body" style="margin-top: 10px; font-size: 13px;">
+              <strong>+138% density</strong> since the prior survey.
+              The trajectory a $40K point-in-time field survey would have missed.
+            </div>
+          </div>
+
+          <div>
+            <a class="b-cta" href="/lender/fcct/parcel/12">
+              Open full report<span aria-hidden="true">→</span>
+            </a>
+            <a class="b-cta secondary" href="/lender/api/fcct/parcel/12/exposure" style="margin-left: 10px;">
+              JSON API<span aria-hidden="true">{ }</span>
+            </a>
+          </div>
+        </div>
+
+        {# right column — trail-cam snippet + modeled $ #}
+        <div class="b-stack">
+          <div class="b-trailcam" style="aspect-ratio: 4/3;">
+            <video autoplay muted loop playsinline preload="metadata">
+              <source src="{{ url_for('static', filename='hero-trailcam-elk-short.webm') }}" type="video/webm">
+            </video>
+            <span class="tc-bracket tl"></span>
+            <span class="tc-bracket tr"></span>
+            <span class="tc-bracket bl"></span>
+            <span class="tc-bracket br"></span>
+            <div class="tc-chrome">
+              <div class="tc-tl">CAM-RB-RAND-01 · IR</div>
+              <div class="tc-tr">random anchor</div>
+              <span class="tc-rec"><span class="dot"></span>REC</span>
+              <div class="tc-bl">event 94 of 354</div>
+              <div class="tc-br">2026-02-28 · 23:14:51</div>
+            </div>
+          </div>
+
+          <div style="padding: 20px; background: var(--ink); color: var(--bone);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="b-eyebrow" style="color: rgba(244,241,234,0.5);">Modeled projection</div>
+                <div style="font-family: var(--font-display); font-size: 42px; line-height: 1; margin-top: 8px; letter-spacing: -0.02em;">$22,955<span style="font-family: var(--font-mono); font-size: 12px; opacity: 0.5; margin-left: 6px;">/year</span></div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; padding: 4px 8px; background: rgba(244,241,234,0.1); color: rgba(244,241,234,0.7); text-transform: uppercase;">not a pipeline output</span>
+            </div>
+            <div style="font-size: 12px; color: rgba(244,241,234,0.6); margin-top: 12px; line-height: 1.5;">
+              Scaled from Anderson 2016 per-hog damage × 650 ac × corn modifier 1.60.
+              Third-party loss data; a committee with an internal damage model
+              should consume the pipeline outputs directly.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── METHODOLOGY ─────────────────────────────────────────── #}
+  <section class="b-section" id="methodology" style="background: var(--bone-soft);">
+    <div class="b-page" style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 64px; align-items: start;">
+      <div>
+        <div class="b-eyebrow">Methodology</div>
+        <h2 class="b-display-2" style="margin: 8px 0 24px;">
+          Published math.<br>
+          Inspectable <em>every step.</em>
+        </h2>
+        <p class="b-body">
+          An external auditor can recover every value we report.
+          The random-placement reference camera on each parcel anchors the
+          IPW correction; the bootstrap propagates the weighting
+          uncertainty into the CI; the tier cutoff is a published binning.
+        </p>
+      </div>
+
+      <div>
+        <div class="b-stack-sm">
+          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--ink-40);">01 / index</div>
+            <div><strong>Detection frequency</strong> — independent events per camera-day. Pre-REM relative abundance. Zero movement assumption. Directly comparable across identical deployments.</div>
+          </div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--ink-40);">02 / debias</div>
+            <div><strong>IPW correction</strong> — per-camera rate deflated by a literature-prior inflation factor (Kolowski &amp; Forrester 2017) keyed to placement_context. Hájek IPW reported alongside as a diagnostic. Random-placement cameras anchor the correction against an unbiased reference.</div>
+          </div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--ink-40);">03 / density</div>
+            <div><strong>Random Encounter Model</strong> — <span class="b-mono">D = (y/t) · π / (v · r · (2 + θ))</span>. Per-species <em>v</em>: hog 6.0 km/day (Kay 2017), deer 1.5 (Webb 2010), coyote 10.0 (Andelt 1985). 1000-iteration bootstrap over cameras with truncated v-perturbation.</div>
+          </div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--ink-40);">04 / tier</div>
+            <div><strong>Mayer-Brisbin 2009 cutoffs</strong>. &lt;2/km² Low · 2-5 Moderate · 5-10 Elevated · ≥10 Severe. Feral hog only at v1; other species surfaced as Informational with density where <em>v</em> is published.</div>
+          </div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); border-bottom: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--ink-40);">05 / flag</div>
+            <div><strong>Recommendation</strong> — <code class="b-mono">insufficient_data</code> below 100 cam-days or 20 events; <code class="b-mono">recommend_supplementary_survey</code> when CI upper/lower &gt; 1.5; else <code class="b-mono">sufficient_for_decision</code>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── PRICING ─────────────────────────────────────────────── #}
+  <section class="b-section" id="pricing">
+    <div class="b-page" style="text-align: center;">
+      <div class="b-eyebrow">Pricing</div>
+      <h2 class="b-display-2" style="margin: 8px auto 16px; max-width: 640px;">
+        <em>25×</em> cheaper than a field survey.<br>
+        Continuous instead of <em>point-in-time.</em>
+      </h2>
+      <p class="b-lede" style="margin: 0 auto 48px;">
+        A loan-review committee's alternative is a <span class="b-mono">$40,000</span> independent biologist survey that's stale in six months.
+        We refresh on any new upload.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 760px; margin: 0 auto; text-align: left;">
+        <div class="b-price">
+          <div class="b-eyebrow">Per verification</div>
+          <div class="amount">$1,500<span class="unit">/parcel</span></div>
+          <div class="b-small">One report per survey window. Use it for a single collateral review.</div>
+          <ul>
+            <li>Full Nature Exposure Report (HTML + JSON)</li>
+            <li>Methodology appendix + 12 citations</li>
+            <li>JSON API for internal portfolio systems</li>
+            <li>Camera-day-level audit trail</li>
+          </ul>
+        </div>
+        <div class="b-price featured">
+          <div class="b-eyebrow" style="color: rgba(244,241,234,0.6);">Portfolio unlimited</div>
+          <div class="amount">$5,000<span class="unit">/month</span></div>
+          <div class="b-small" style="color: rgba(244,241,234,0.7);">Unlimited parcels, continuous refresh on every upload.</div>
+          <ul>
+            <li>Every parcel in your portfolio</li>
+            <li>Survey-trend delta across all periods</li>
+            <li>Cross-portfolio tier distribution</li>
+            <li>Ag-lender dashboard + exports</li>
+            <li>Regulatory-affairs methodology briefing</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── FOOTER ──────────────────────────────────────────────── #}
+  <footer class="b-footer">
+    <div class="b-footer-inner">
+      <div>
+        <a class="b-brand" href="/" style="color: var(--bone); margin-bottom: 20px; display: inline-flex;">
+          {% include 'basal/_mark.svg' ignore missing %}
+          <span class="b-brand-text" style="color: var(--bone);">basal<em style="color: var(--forest-lit);"> /</em> informatics</span>
+        </a>
+        <p class="b-body" style="font-size: 13px; max-width: 36ch;">
+          Ecological verification for agricultural lenders and reinsurers. Primary-source data, methodology-defensible.
+        </p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="/lender/fcct/">Live portfolio</a></li>
+          <li><a href="#sample">Sample report</a></li>
+          <li><a href="/lender/api/fcct/parcel/12/exposure">JSON API</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Science</h4>
+        <ul>
+          <li><a href="#methodology">Methodology</a></li>
+          <li><a href="#pipeline">Pipeline</a></li>
+          <li><a href="#">References</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="mailto:hello@basal.eco">hello@basal.eco</a></li>
+          <li><a href="https://github.com/MizuguchiJAkira/strecker">github</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="b-footer-meta">
+      <span>© basal informatics · {{ current_year or '2026' }}</span>
+      <span>basal.eco · made in Austin, TX</span>
+    </div>
+  </footer>
+
+  {# small reveal script — progressive enhancement #}
+  <script>
+    (function(){
+      if (!('IntersectionObserver' in window)) return;
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+      }, { threshold: 0.15 });
+      document.querySelectorAll('.b-section, .b-parcel-card').forEach(el => {
+        el.classList.add('b-reveal');
+        io.observe(el);
+      });
+    })();
+  </script>
+</body>
+</html>

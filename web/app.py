@@ -357,7 +357,10 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
     def index():
         from flask import redirect, render_template
         if site == "basal":
-            return redirect("/owner/coverage")
+            # Editorial landing for the Basal Informatics brand. Pure
+            # marketing — hero, pipeline diagram, sample parcel, pricing.
+            # The operating dashboards live at /lender/** and /owner/**.
+            return render_template("basal/landing.html")
         return render_template("home.html")
 
     @app.route("/photos/<species>/<filename>")

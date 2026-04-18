@@ -53,35 +53,38 @@
 </style>
 
 <div class="lender-panel">
-  <!-- Header -->
-  <div class="mb-2 text-xs uppercase tracking-widest text-slate-500 dark:text-gray-400">
-    Lender Portfolio
-  </div>
-  <div class="flex items-start justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+  {# ── Editorial header in the basal design system ─────────── #}
+  <div class="b-lender-header" style="margin: -32px -32px 32px; padding: 48px 32px 40px;">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ lender.name }}</h1>
-      <div class="text-sm text-slate-500 dark:text-gray-400 mt-1">
-        {% if lender.parent_org %}{{ lender.parent_org }} · {% endif %}
-        {% if lender.state %}Primary state: {{ lender.state }} · {% endif %}
-        {{ rows|length }} parcel{{ 's' if rows|length != 1 else '' }} under assessment
+      <div class="b-eyebrow">Lender portfolio · {{ lender.slug }}</div>
+      <h1 style="color: var(--bone); font-family: var(--font-display); font-size: clamp(32px, 4vw, 52px); letter-spacing: -0.025em; line-height: 1; margin: 14px 0 12px; font-weight: 400;">
+        {{ lender.name }}
+      </h1>
+      <div class="sub" style="display: flex; gap: 24px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: rgba(244,241,234,0.55);">
+        {% if lender.parent_org %}<span>{{ lender.parent_org }}</span>{% endif %}
+        {% if lender.state %}<span>primary state · {{ lender.state }}</span>{% endif %}
+        <span>{{ rows|length }} parcel{{ 's' if rows|length != 1 else '' }} under assessment</span>
+        <span style="margin-left: auto;">report generated · now</span>
       </div>
     </div>
-    <div class="text-right text-xs text-slate-400 dark:text-gray-500 mono">
-      Report generated<br>
-      <span class="text-slate-700 dark:text-gray-200">{{ "now"|default("—") }}</span>
-    </div>
-  </div>
 
-  <!-- Tier tallies -->
-  <div class="mb-6 flex flex-wrap gap-2 items-center">
-    <span class="text-xs text-slate-500 dark:text-gray-400 mr-2 uppercase tracking-widest">
-      Feral hog exposure distribution
-    </span>
-    {% for tier in tier_order %}
-      <span class="tally-chip tier-badge tier-{{ tier }}">
-        {{ tier_counts[tier] }} {{ tier }}
-      </span>
-    {% endfor %}
+    {# Tier-tally chips, editorial version — large numerals, thin labels #}
+    <div class="b-tally" style="margin-top: 32px;">
+      {% for tier in tier_order %}
+      <div class="{{ tier|lower }}">
+        <span class="count">{{ tier_counts[tier] }}</span>
+        <span class="lab">{{ tier }}</span>
+      </div>
+      {% endfor %}
+      {# Pending tile for parcels without an active season #}
+      {% set n_pending = rows|selectattr('hog_tier', 'equalto', 'Pending')|list|length %}
+      {% if n_pending > 0 %}
+      <div class="pending">
+        <span class="count">{{ n_pending }}</span>
+        <span class="lab">Pending</span>
+      </div>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Portfolio table -->

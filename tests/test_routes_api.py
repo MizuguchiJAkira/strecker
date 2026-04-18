@@ -109,12 +109,17 @@ def test_health_returns_200_with_db_true(demo_client):
     assert r.get_json()["db"] is True
 
 
-def test_root_on_basal_site_redirects_to_owner_coverage(demo_client):
+def test_root_on_basal_site_renders_editorial_landing(demo_client):
+    """After the site redesign, `/` on SITE=basal renders the branded
+    editorial landing page (hero + pipeline diagram + sample parcel
+    card + pricing + methodology), not a redirect to /owner/coverage.
+    """
     _, c, _ = demo_client
     r = c.get("/", follow_redirects=False)
-    assert r.status_code in (301, 302, 308)
-    # "basal" site redirects to /owner/coverage
-    assert "/owner/coverage" in r.headers.get("Location", "")
+    assert r.status_code == 200
+    assert b"Primary-source" in r.data        # hero headline
+    assert b"b-pipeline" in r.data            # pipeline diagram
+    assert b"b-trailcam" in r.data            # trail-cam frame aesthetic
 
 
 def test_lender_index_redirects_when_one_lender(demo_client):
