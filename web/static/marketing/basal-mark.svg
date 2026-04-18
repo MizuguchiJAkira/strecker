@@ -2,24 +2,17 @@
 <!--
   basal / mark.
 
-  Concept: a basal-area cross-section ring (forestry: the cross-sectional
-  area of a tree trunk at 4.5ft, used to measure stand density) viewed
-  through a camera-trap aperture. Four concentric rings, inner ring
-  interrupted by a single pin/dot — the camera in the landscape.
+  One solid disc (the basal-area cross-section / lens body) with one
+  circular aperture carved out as negative space — the observer, the
+  camera, the pin in the landscape. Single-path + fill-rule="evenodd"
+  so no <mask>/<defs>/duplicate-id risk when inlined repeatedly.
+  fill=currentColor adapts to the parent text color.
+
+  Proportions tuned for favicon → hero scaling. Hole is 12% of the
+  disc area at r=8 in a 64vb — stays visible at 16px favicon size.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="basal">
-  <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-    <!-- outer ring -->
-    <circle cx="32" cy="32" r="27" stroke-opacity="0.25"/>
-    <!-- cross-section rings -->
-    <circle cx="32" cy="32" r="20" stroke-opacity="0.45"/>
-    <circle cx="32" cy="32" r="13" stroke-opacity="0.70"/>
-    <!-- aperture cross-hairs, asymmetric -->
-    <line x1="32" y1="2"  x2="32" y2="10" stroke-opacity="0.55"/>
-    <line x1="32" y1="54" x2="32" y2="62" stroke-opacity="0.55"/>
-    <line x1="2"  y1="32" x2="10" y2="32" stroke-opacity="0.55"/>
-    <line x1="54" y1="32" x2="62" y2="32" stroke-opacity="0.55"/>
-  </g>
-  <!-- the pin: a single camera, offset from center -->
-  <circle cx="39.5" cy="25.5" r="3" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"
+     fill="currentColor" fill-rule="evenodd" aria-label="basal">
+  <path d="M 32 4 a 28 28 0 1 0 0 56 a 28 28 0 1 0 0 -56 z
+           M 44 14 a 8 8 0 1 0 0 16 a 8 8 0 1 0 0 -16 z"/>
 </svg>
