@@ -165,9 +165,47 @@ body.basal a:hover { text-decoration: underline; text-underline-offset: 4px; tex
 .b-brand-text em {
   font-style: italic; color: var(--forest-lit); font-weight: 400;
 }
-.b-nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--bone-55); }
-.b-nav-links a { position: relative; }
-.b-nav-links a:hover { color: var(--bone); }
+.b-nav-links {
+  display: flex;
+  gap: 28px;
+}
+.b-nav-links a {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--bone-70);
+  padding: 6px 0;
+  transition: color 120ms ease;
+}
+.b-nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--forest-lit);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 180ms ease;
+}
+.b-nav-links a:hover {
+  color: var(--bone);
+  text-decoration: none;
+}
+.b-nav-links a:hover::after {
+  transform: scaleX(1);
+}
+/* small numeral prefix — subtle, marks each section as part of an
+   indexed sequence and reinforces the terminal/sensor typographic
+   personality */
+.b-nav-links a::before {
+  content: attr(data-n);
+  margin-right: 8px;
+  color: var(--bone-40);
+  font-variant-numeric: tabular-nums;
+}
 
 .b-cta {
   display: inline-flex; align-items: center; gap: 8px;
