@@ -37,9 +37,29 @@
   </nav>
 
   {# ── HERO ────────────────────────────────────────────────── #}
+  {#
+    Video-forward hero. The trail-cam footage is the background —
+    it fades into the page on all sides via a double mask (radial
+    vignette + linear left-dissolve). Metadata floats over the
+    video as if on a real trail-cam monitor. Text sits on the
+    dark-readable left column.
+  #}
   <header class="b-hero">
-    <div class="b-hero-grid">
-      <div>
+    <div class="b-hero-bg">
+      <video autoplay muted loop playsinline preload="metadata"
+             poster="{{ url_for('static', filename='marketing/hero-poster.jpg') }}">
+        <source src="{{ url_for('static', filename='hero-trailcam.webm') }}" type="video/webm">
+      </video>
+    </div>
+
+    {# floating trail-cam metadata overlay #}
+    <div class="b-hero-meta tr">CAM-HM-NORTH · IR</div>
+    <div class="b-hero-meta tl"><span class="rec"><span class="dot"></span>REC · 29.915°N 99.799°W</span></div>
+    <div class="b-hero-meta bl">CERVUS CANADENSIS · p=0.92</div>
+    <div class="b-hero-meta br">2026-03-12 · 22:47:03</div>
+
+    <div class="b-hero-content">
+      <div class="content-col">
         <div class="b-eyebrow" style="margin-bottom: 20px;">
           Nature-risk verification · lender-grade
         </div>
@@ -61,25 +81,8 @@
           <a class="b-cta secondary" href="#methodology">Methodology one-pager</a>
         </div>
       </div>
-
-      {# right column — trail-cam frame with actual footage #}
-      <div class="b-trailcam" style="aspect-ratio: 4/3;">
-        <video autoplay muted loop playsinline preload="metadata"
-               poster="{{ url_for('static', filename='marketing/hero-poster.jpg') }}">
-          <source src="{{ url_for('static', filename='hero-trailcam.webm') }}" type="video/webm">
-        </video>
-        <span class="tc-bracket tl"></span>
-        <span class="tc-bracket tr"></span>
-        <span class="tc-bracket bl"></span>
-        <span class="tc-bracket br"></span>
-        <div class="tc-chrome">
-          <div class="tc-tl">CAM-RB-CORN-02 · IR</div>
-          <div class="tc-tr">30.584°N 96.495°W</div>
-          <span class="tc-rec"><span class="dot"></span>REC</span>
-          <div class="tc-bl">SUS SCROFA · p=0.93</div>
-          <div class="tc-br">2026-03-12 · 22:47:03</div>
-        </div>
-      </div>
+      {# right column intentionally empty — the video owns this space #}
+      <div></div>
     </div>
   </header>
 
@@ -222,12 +225,12 @@
         <div class="b-stack">
           <div style="display: flex; align-items: center; gap: 14px;">
             <span class="b-tier-badge tier-severe">Severe</span>
-            <span class="b-mono" style="color: var(--ink-40);">TX-BRA-2026-00012</span>
+            <span class="b-mono" style="color: var(--bone-40);">TX-BRA-2026-00012</span>
           </div>
 
           <div>
             <div class="b-metric" style="margin-bottom: 28px;">
-              <span class="m-num">83.7<span style="font-size: 0.45em; color: var(--ink-40);"> / 100</span></span>
+              <span class="m-num">83.7<span style="font-size: 0.45em; color: var(--bone-40);"> / 100</span></span>
               <span class="m-sub">Feral hog exposure score</span>
             </div>
 
@@ -235,22 +238,22 @@
               <div class="b-metric">
                 <span class="m-num" style="font-size: 32px;">13.47</span>
                 <span class="m-sub">animals/km²</span>
-                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">95% CI 3.49 – 36.56</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--bone-40); margin-top: 4px;">95% CI 3.49 – 36.56</span>
               </div>
               <div class="b-metric">
                 <span class="m-num" style="font-size: 32px;">1.526</span>
                 <span class="m-sub">raw rate/cam-day</span>
-                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">pre-bias correction</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--bone-40); margin-top: 4px;">pre-bias correction</span>
               </div>
               <div class="b-metric">
                 <span class="m-num" style="font-size: 32px; color: var(--forest);">1.042</span>
                 <span class="m-sub">IPW-adjusted</span>
-                <span class="b-mono" style="font-size: 11px; color: var(--ink-40); margin-top: 4px;">rate REM consumed</span>
+                <span class="b-mono" style="font-size: 11px; color: var(--bone-40); margin-top: 4px;">rate REM consumed</span>
               </div>
             </div>
           </div>
 
-          <div style="padding: 18px 20px; background: var(--ink-06); border-left: 2px solid var(--forest);">
+          <div style="padding: 18px 20px; background: var(--bone-08); border-left: 2px solid var(--forest);">
             <div class="b-eyebrow" style="margin-bottom: 6px;">Trajectory</div>
             <div class="b-delta">
               <span class="b-mono">Fall 2025</span>
@@ -316,7 +319,7 @@
   </section>
 
   {# ── METHODOLOGY ─────────────────────────────────────────── #}
-  <section class="b-section" id="methodology" style="background: var(--bone-soft);">
+  <section class="b-section" id="methodology" style="background: var(--page-lift);">
     <div class="b-page" style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 64px; align-items: start;">
       <div>
         <div class="b-eyebrow">Methodology</div>
@@ -334,24 +337,24 @@
 
       <div>
         <div class="b-stack-sm">
-          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
-            <div class="b-mono" style="color: var(--ink-40);">01 / index</div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--bone-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--bone-40);">01 / index</div>
             <div><strong>Detection frequency</strong> — independent events per camera-day. Pre-REM relative abundance. Zero movement assumption. Directly comparable across identical deployments.</div>
           </div>
-          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
-            <div class="b-mono" style="color: var(--ink-40);">02 / debias</div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--bone-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--bone-40);">02 / debias</div>
             <div><strong>IPW correction</strong> — per-camera rate deflated by a literature-prior inflation factor (Kolowski &amp; Forrester 2017) keyed to placement_context. Hájek IPW reported alongside as a diagnostic. Random-placement cameras anchor the correction against an unbiased reference.</div>
           </div>
-          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
-            <div class="b-mono" style="color: var(--ink-40);">03 / density</div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--bone-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--bone-40);">03 / density</div>
             <div><strong>Random Encounter Model</strong> — <span class="b-mono">D = (y/t) · π / (v · r · (2 + θ))</span>. Per-species <em>v</em>: hog 6.0 km/day (Kay 2017), deer 1.5 (Webb 2010), coyote 10.0 (Andelt 1985). 1000-iteration bootstrap over cameras with truncated v-perturbation.</div>
           </div>
-          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
-            <div class="b-mono" style="color: var(--ink-40);">04 / tier</div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--bone-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--bone-40);">04 / tier</div>
             <div><strong>Mayer-Brisbin 2009 cutoffs</strong>. &lt;2/km² Low · 2-5 Moderate · 5-10 Elevated · ≥10 Severe. Feral hog only at v1; other species surfaced as Informational with density where <em>v</em> is published.</div>
           </div>
-          <div style="padding: 20px 0; border-top: 1px solid var(--ink-15); border-bottom: 1px solid var(--ink-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
-            <div class="b-mono" style="color: var(--ink-40);">05 / flag</div>
+          <div style="padding: 20px 0; border-top: 1px solid var(--bone-15); border-bottom: 1px solid var(--bone-15); display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="b-mono" style="color: var(--bone-40);">05 / flag</div>
             <div><strong>Recommendation</strong> — <code class="b-mono">insufficient_data</code> below 100 cam-days or 20 events; <code class="b-mono">recommend_supplementary_survey</code> when CI upper/lower &gt; 1.5; else <code class="b-mono">sufficient_for_decision</code>.</div>
           </div>
         </div>
