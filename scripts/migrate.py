@@ -118,6 +118,20 @@ _CREATE_INDEX_RE = re.compile(
     r"([A-Za-z_][A-Za-z0-9_]*)\s+ON\s+([A-Za-z_][A-Za-z0-9_]*)",
     re.IGNORECASE,
 )
+# Postgres-only constructs — SQLite simply can't run these. We match
+# them up front so the migration file stays single-source and the
+# runner silently skips them on SQLite. On Postgres they execute
+# normally; idempotence there is either baked into the statement
+# ("IF NOT EXISTS") or into the benign-error fallback below.
+_ALTER_ADD_CONSTRAINT_RE = re.compile(
+    r"^\s*ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ADD\s+CONSTRAINT\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_ALTER_COLUMN_TYPE_RE = re.compile(
+    r"^\s*ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ALTER\s+COLUMN\s+"
+    r"[A-Za-z_][A-Za-z0-9_]*\s+(?:SET\s+DATA\s+)?TYPE\b",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _should_skip_on_sqlite(conn, stmt: str) -> bool:
@@ -151,6 +165,14 @@ def _should_skip_on_sqlite(conn, stmt: str) -> bool:
             {"n": idx_name},
         ).fetchall()
         return bool(rows)
+    # Postgres-only DDL — skip unconditionally on SQLite. These carry
+    # no matching obligation on SQLite's side (no referential integrity
+    # enforcement, no fixed column length), so skipping is correct, not
+    # just tolerant.
+    if _ALTER_ADD_CONSTRAINT_RE.match(stmt):
+        return True
+    if _ALTER_COLUMN_TYPE_RE.match(stmt):
+        return True
     return False
 
 

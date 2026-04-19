@@ -81,20 +81,35 @@ and needs to hit prod DDL before the code paths that touch it.
 
 | Commit     | Change                                                     | Migration                               |
 |------------|-----------------------------------------------------------|------------------------------------------|
-| `37a03f5`  | `processing_jobs` (full table)                            | bootstrapped by `create_all()` — OK      |
-| `9bbba09`  | `lender_clients` table; `properties.lender_client_id`; `properties.crop_type` | **gap** — covered by sibling agent's work / `create_all()` on its brand-new table; `properties.*` new cols require follow-up if prod already had `properties` |
-| `0c366e4`  | `detection_summaries.species_key` widened VARCHAR(80) → VARCHAR(200) | **gap** — size changes are invisible to `create_all()`; document-only for now |
+| `37a03f5`  | `processing_jobs` (full table) + `users.is_owner` + `processing_jobs.property_id/upload_id` | `0000_legacy_boot_migrations.sql` (consolidated) |
+| `9bbba09`  | `lender_clients` table; `properties.lender_client_id`; `properties.crop_type` | `0000_legacy_boot_migrations.sql` |
+| `0c366e4`  | `detection_summaries.species_key` widened VARCHAR(80) → VARCHAR(200) | `0000_legacy_boot_migrations.sql` |
 | `0aad2ba`  | `upload_tokens` table                                      | `0001_upload_tokens.sql`                 |
 | `3486a1e`  | `processing_jobs.accuracy_report_json` column              | `0002_processing_job_accuracy.sql`       |
 | `7dd8cdf`  | `camera_stations` table (SQLAlchemy, per-property)         | `0003_camera_stations.sql`               |
 
-The three explicit migrations above cover every schema change in the
-problem statement. The two residual gaps (`lender_clients` /
-`properties.*` cols from `9bbba09`, and the `species_key` widening
-from `0c366e4`) should become `0004_*.sql` / `0005_*.sql` in a
-follow-up if the production Postgres was provisioned before those
-commits; for the Matagorda pilot target the environment was freshly
-provisioned after both, so `create_all()` picked them up.
+No residual gaps. `0000_legacy_boot_migrations.sql` consolidates the
+five boot-time `ALTER TABLE` shims `web/app.py` has been silently
+re-running on every app start, turning them into an explicit tracked
+migration. Each statement is idempotent; Postgres-only constructs
+(the FK `ADD CONSTRAINT`, the `ALTER COLUMN TYPE`) are skipped on
+SQLite via the runner's dialect-aware pre-check and execute normally
+on Postgres.
+
+A follow-up commit can delete the boot-time shim in `web/app.py`
+once `0000_*` has been applied to production (the shim becomes a
+redundant no-op at that point).
+
+### Note on commit `3e37a2f`
+
+The commit subject reads `feat(worker): split multi-year uploads
+into per-season DetectionSummary rows` but the content is actually
+the admin-UI upload-tokens page (`upload_tokens.html`,
+`properties.py` route, `test_upload_tokens_ui.py`). A parallel-agent
+push race collapsed one agent's files into another agent's commit
+message. Functionally correct — both changes are on `main` — but
+a bisect on commit subjects alone will be misled. The real
+multi-year-seasons work lives in commit `4e7aae8`.
 
 ## Adding a new migration
 
