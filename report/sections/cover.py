@@ -24,6 +24,7 @@ from report.styles import (
     STYLE_COVER_META_KEY, STYLE_COVER_META_VAL,
     STYLE_COVER_CAPTION, STYLE_COVER_FOOTER,
 )
+from report.logo import BasalMark
 
 # Large white report-type headline above the title block
 _STYLE_REPORT_TYPE = ParagraphStyle(
@@ -82,16 +83,41 @@ def render(assessment: dict) -> list:
     """Return list of ReportLab flowables for the cover page."""
     elements: list = []
 
-    # ── Masthead ──────────────────────────────────────────────────────
+    # ── Masthead (logo + wordmark) ────────────────────────────────────
     _masthead_style = ParagraphStyle(
         "CoverMasthead",
-        fontName=FONTS["serif_bold"], fontSize=14, leading=18,
+        fontName=FONTS["serif_bold"], fontSize=15, leading=19,
         textColor=COVER_TEXT, alignment=TA_LEFT,
     )
-    elements.append(Paragraph("Basal Informatics", _masthead_style))
-    elements.append(Spacer(1, 0.25 * inch))
+    _masthead_tag_style = ParagraphStyle(
+        "CoverMastheadTag",
+        fontName=FONTS["mono_regular"], fontSize=7.5, leading=10,
+        textColor=COVER_MUTED, alignment=TA_LEFT,
+    )
+    # Logo sits inside a narrow cell to its left; wordmark + tagline
+    # stack in the right cell. Keeps the whole masthead to one row.
+    logo = BasalMark(size=0.42 * inch, color=COVER_TEXT)
+    masthead_tbl = Table(
+        [[
+            logo,
+            [
+                Paragraph("Basal Informatics", _masthead_style),
+                Paragraph("ECOLOGICAL VERIFICATION", _masthead_tag_style),
+            ],
+        ]],
+        colWidths=[0.55 * inch, COVER_CONTENT_WIDTH - 0.55 * inch],
+    )
+    masthead_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(masthead_tbl)
+    elements.append(Spacer(1, 0.18 * inch))
     elements.append(_hrule(COVER_CONTENT_WIDTH))
-    elements.append(Spacer(1, 0.35 * inch))
+    elements.append(Spacer(1, 0.22 * inch))
 
     # ── Title block ───────────────────────────────────────────────────
     property_name = _format_property_name(assessment)
@@ -126,31 +152,31 @@ def render(assessment: dict) -> list:
         elements.append(Paragraph(
             "  ·  ".join(meta_parts), STYLE_COVER_EYEBROW))
 
-    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(Spacer(1, 0.22 * inch))
 
     # ── Hero image ────────────────────────────────────────────────────
     if _COVER_IMAGE_PATH.exists():
-        # Image is pre-cropped to 3:2 cinematic aspect (4608×3072)
-        # so the footer block still fits above the fold.
+        # Crop to a tighter 16:9 aspect so the footer block fits above
+        # the fold without pushing to page 2.
         img_w = COVER_CONTENT_WIDTH
-        img_h = img_w * (3072 / 4608)  # ≈ 0.667 ratio
+        img_h = img_w * (9 / 16)
         hero = Image(str(_COVER_IMAGE_PATH),
                      width=img_w, height=img_h)
         elements.append(hero)
-        elements.append(Spacer(1, 0.12 * inch))
+        elements.append(Spacer(1, 0.08 * inch))
         elements.append(Paragraph(
-            "<i>Station CW-04 · 18 Jun 2023 · 14:11 — sounder of feral "
-            "hogs (Sus scrofa), infrared capture</i>",
+            "Station CW-04 · 18 Jun 2023 · 14:11 — sounder of feral "
+            "hogs (Sus scrofa), infrared capture",
             STYLE_COVER_CAPTION))
     else:
-        # Graceful fallback — a blank cream rule where the image would sit
+        # Graceful fallback — a blank rule where the image would sit
         elements.append(_hrule(
             COVER_CONTENT_WIDTH, color=COVER_MUTED, thickness=1))
-        elements.append(Spacer(1, 3.5 * inch))
+        elements.append(Spacer(1, 3.0 * inch))
         elements.append(_hrule(
             COVER_CONTENT_WIDTH, color=COVER_MUTED, thickness=1))
 
-    elements.append(Spacer(1, 0.15 * inch))
+    elements.append(Spacer(1, 0.12 * inch))
 
     # ── Prepared for / Prepared by ────────────────────────────────────
     prepared_for = assessment.get("prepared_for") or {}
@@ -179,11 +205,11 @@ def render(assessment: dict) -> list:
 
     # Rule, then report-type headline, then prepared block
     elements.append(_hrule(COVER_CONTENT_WIDTH))
-    elements.append(Spacer(1, 0.12 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
     elements.append(Paragraph(
         "Parcel-Level Nature Exposure Report",
         _STYLE_REPORT_TYPE))
-    elements.append(Spacer(1, 0.15 * inch))
+    elements.append(Spacer(1, 0.1 * inch))
 
     prep_table = Table(
         [[pf_cell, pb_cell]],
@@ -200,10 +226,9 @@ def render(assessment: dict) -> list:
     elements.append(prep_table)
 
     # ── Footer ────────────────────────────────────────────────────────
-    # Push to bottom of frame via a flexible spacer approximation.
-    elements.append(Spacer(1, 0.35 * inch))
+    elements.append(Spacer(1, 0.2 * inch))
     elements.append(_hrule(COVER_CONTENT_WIDTH))
-    elements.append(Spacer(1, 0.12 * inch))
+    elements.append(Spacer(1, 0.08 * inch))
 
     footer = Table(
         [[

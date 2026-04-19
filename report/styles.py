@@ -93,16 +93,16 @@ MONO_MEDIUM   = "JetBrainsMono-Medium" if _MONO_OK else "Courier-Bold"
 # ═══════════════════════════════════════════════════════════════════════════
 
 COLORS = {
-    # Surfaces
-    "page_bg":  "#f4f1ea",  # bone paper (content pages)
+    # Surfaces — official white paper, ink cover
+    "page_bg":  "#ffffff",  # white paper (content pages)
     "cover_bg": "#0c0d0a",  # ink (cover page, full-bleed)
     # Ink
     "text_primary":   "#0c0d0a",
-    "text_secondary": "#595650",  # warm mid gray
-    "text_muted":     "#8a877f",  # warm light gray
+    "text_secondary": "#5a5a5a",  # neutral mid gray
+    "text_muted":     "#8a8a8a",  # neutral light gray
     # Accent — single green, used sparingly
     "forest":      "#1c2118",  # deep forest (section rules, data strokes)
-    "forest_lit":  "#8a9a74",  # forest-lit (single data accent)
+    "forest_lit":  "#6a7a54",  # forest-lit (single data accent, muted)
     # Legacy-named aliases so section modules keep rendering
     # (they reference BRAND_NAVY, BRAND_BLUE, BRAND_TEAL, etc.)
     "brand_navy":       "#0c0d0a",  # redirected to ink
@@ -127,14 +127,14 @@ COLORS = {
     "chart_managed":   "#8a9a74",
     "chart_avoidable": "#c8c5bd",
     # Structure
-    "gridline":         "#d8d5cd",  # hairline on bone
-    "border_light":     "#c8c5bd",
-    "table_header_bg":  "#f4f1ea",
+    "gridline":         "#d8d8d8",  # hairline on white
+    "border_light":     "#c8c8c8",
+    "table_header_bg":  "#ffffff",
     "table_header_text": "#0c0d0a",
-    "table_alt_row":    "#ecE8df",
+    "table_alt_row":    "#f4f4f4",
     "section_bar_bg":   "#0c0d0a",  # black eyebrow bar (editorial)
-    "section_bar_text": "#f4f1ea",
-    "background":       "#f4f1ea",
+    "section_bar_text": "#ffffff",
+    "background":       "#ffffff",
 }
 
 # ReportLab color objects
@@ -323,9 +323,9 @@ STYLE_COVER_EYEBROW = ParagraphStyle(
 
 STYLE_COVER_TITLE = ParagraphStyle(
     "CoverTitle",
-    fontName=SERIF_DISPLAY, fontSize=56, leading=62,
+    fontName=SERIF_DISPLAY, fontSize=40, leading=46,
     textColor=COVER_TEXT, alignment=TA_LEFT,
-    spaceAfter=12,
+    spaceAfter=8,
 )
 
 STYLE_COVER_SUBTITLE = ParagraphStyle(
