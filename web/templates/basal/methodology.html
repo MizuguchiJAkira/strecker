@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Methodology · basal informatics</title>
+  <meta name="description" content="How Basal turns trail-camera data into methodology-defensible density estimates and damage tiers. Rowcliffe 2008 REM · Kolowski 2017 placement bias · Mayer-Brisbin 2009 hog tiers.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/basal.css') }}">
+
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='marketing/basal-mark.svg') }}">
+
+  <style>
+    /* Editorial long-read layout — single column, Fraunces headings,
+       Inter body. Heavy use of vertical rhythm. Lives next to the
+       landing page; same design tokens, different cadence. */
+    .b-methodology { max-width: 720px; margin: 0 auto;
+                     padding: 40px var(--gutter) 96px; color: var(--bone); }
+    .b-methodology h1 { font-family: var(--font-display); font-size: 44px;
+                        line-height: 1.12; letter-spacing: -0.02em;
+                        margin: 12px 0 32px; color: var(--bone); }
+    .b-methodology h2 { font-family: var(--font-display); font-size: 24px;
+                        line-height: 1.25; letter-spacing: -0.015em;
+                        margin: 48px 0 12px; color: var(--bone); }
+    .b-methodology h3 { font-family: var(--font-body); font-size: 15px;
+                        font-weight: 600; letter-spacing: 0.02em;
+                        text-transform: uppercase; margin: 28px 0 6px;
+                        color: var(--forest-lit); }
+    .b-methodology p  { font-family: var(--font-body); font-size: 16px;
+                        line-height: 1.62; color: var(--bone-70);
+                        margin: 0 0 16px; }
+    .b-methodology ul, .b-methodology ol { font-family: var(--font-body);
+                                            font-size: 16px;
+                                            line-height: 1.62;
+                                            color: var(--bone-70);
+                                            padding-left: 22px; margin: 0 0 16px; }
+    .b-methodology li { margin-bottom: 6px; }
+    .b-methodology strong { color: var(--bone); font-weight: 600; }
+    .b-methodology em { color: var(--bone); font-style: italic; }
+    .b-methodology a { color: var(--forest-lit); text-decoration: underline;
+                       text-decoration-thickness: 1px;
+                       text-underline-offset: 3px; }
+    .b-methodology code { font-family: var(--font-mono); font-size: 14px;
+                          background: var(--page-lift);
+                          padding: 2px 6px; border-radius: 3px;
+                          color: var(--bone); }
+    .b-methodology pre { font-family: var(--font-mono); font-size: 13px;
+                         background: var(--page-lift);
+                         padding: 16px 18px; border-radius: 6px;
+                         overflow-x: auto; margin: 20px 0;
+                         line-height: 1.55; color: var(--bone); }
+    .b-methodology pre code { background: none; padding: 0;
+                              font-size: inherit; }
+    .b-methodology table { width: 100%; font-family: var(--font-body);
+                           font-size: 14px; margin: 20px 0;
+                           border-collapse: collapse; }
+    .b-methodology table th { text-align: left;
+                              font-family: var(--font-mono); font-size: 12px;
+                              letter-spacing: 0.08em; text-transform: uppercase;
+                              color: var(--bone-55);
+                              padding: 10px 12px 6px;
+                              border-bottom: 1px solid var(--bone-15); }
+    .b-methodology table td { padding: 8px 12px; color: var(--bone-70);
+                              border-bottom: 1px solid var(--bone-08); }
+    .b-methodology blockquote { border-left: 2px solid var(--forest-lit);
+                                padding-left: 18px; margin: 20px 0;
+                                color: var(--bone-55); font-style: italic; }
+    .b-methodology-fallback { white-space: pre-wrap; font-size: 13px;
+                              color: var(--bone-70); }
+    .b-methodology-eyebrow { font-family: var(--font-mono); font-size: 11px;
+                             letter-spacing: 0.14em; text-transform: uppercase;
+                             color: var(--bone-55); margin: 0 0 6px; }
+
+    /* Tighten top spacing under the fixed nav */
+    body.basal { padding-top: 0; }
+  </style>
+</head>
+<body class="basal">
+
+  {# ── NAV ─────────────────────────────────────────────────── #}
+  <nav class="b-nav">
+    <div class="b-nav-inner">
+      <a class="b-brand" href="/">
+        {% include 'basal/_mark.svg' ignore missing %}
+        <span class="b-brand-text">basal<em> /</em> informatics</span>
+      </a>
+      <div class="b-nav-links">
+        <a href="/methodology" data-n="01">Methodology</a>
+        <a href="/#pipeline"    data-n="02">Pipeline</a>
+        <a href="/#sample"      data-n="03">Sample report</a>
+        <a href="/#pricing"     data-n="04">Pricing</a>
+      </div>
+      <a class="b-cta" href="/lender/fcct/">
+        See live portfolio
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </nav>
+
+  <article class="b-methodology">
+    <p class="b-methodology-eyebrow">Primary document · v1 · last updated from docs/METHODOLOGY.md on render</p>
+    {{ body_html | safe }}
+  </article>
+
+  {# Reuse the same footer as the landing page — kept inline to avoid
+     a partial split for a two-page site. #}
+  <footer class="b-footer">
+    <div class="b-footer-inner">
+      <div>
+        <a class="b-brand" href="/" style="color: var(--bone); margin-bottom: 20px; display: inline-flex;">
+          {% include 'basal/_mark.svg' ignore missing %}
+          <span class="b-brand-text" style="color: var(--bone);">basal<em style="color: var(--forest-lit);"> /</em> informatics</span>
+        </a>
+        <p class="b-body" style="font-size: 13px; max-width: 36ch;">
+          Ecological verification for agricultural lenders and reinsurers. Primary-source data, methodology-defensible.
+        </p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="/lender/fcct/">Live portfolio</a></li>
+          <li><a href="/#sample">Sample report</a></li>
+          <li><a href="/lender/api/fcct/parcel/12/exposure">JSON API</a></li>
+          <li><a href="/#pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Science</h4>
+        <ul>
+          <li><a href="/methodology">Methodology</a></li>
+          <li><a href="/#pipeline">Pipeline</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="mailto:hello@basal.eco">hello@basal.eco</a></li>
+          <li><a href="https://github.com/MizuguchiJAkira/basal-informatics">github</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="b-footer-meta">
+      <span>© basal informatics · 2026</span>
+      <span>basal.eco · made in Austin, TX</span>
+    </div>
+  </footer>
+
+</body>
+</html>

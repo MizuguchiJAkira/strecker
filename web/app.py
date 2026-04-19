@@ -402,6 +402,35 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
             return render_template("basal/landing.html")
         return render_template("home.html")
 
+    @app.route("/methodology")
+    def methodology_page():
+        """Public methodology page — mirrors docs/METHODOLOGY.md so the
+        same text that binds into every parcel report is readable from
+        the website at a stable URL. Rendered as Markdown → HTML at
+        request time so doc updates don't require a template edit.
+        """
+        from flask import render_template, abort
+        from pathlib import Path
+        if site != "basal":
+            abort(404)
+        md_path = (Path(__file__).parent.parent / "docs" / "METHODOLOGY.md")
+        if not md_path.exists():
+            abort(404)
+        text = md_path.read_text(encoding="utf-8")
+        try:
+            import markdown as _md  # optional dep
+            html = _md.markdown(
+                text, extensions=["tables", "fenced_code", "toc"])
+        except Exception:
+            # Fallback: a tiny conversion — wrap in <pre> so the page is
+            # at least readable without pulling markdown in.
+            from html import escape as _esc
+            html = f"<pre class=\"b-methodology-fallback\">{_esc(text)}</pre>"
+        return render_template(
+            "basal/methodology.html",
+            body_html=html,
+        )
+
     @app.route("/photos/<species>/<filename>")
     def serve_photo(species, filename):
         """Serve trail cam photos with IR/night-vision styling.

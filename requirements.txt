@@ -35,6 +35,10 @@ Pillow>=9.0
 # Not imported by the production pipeline — safe to skip in the
 # worker image.
 piexif>=1.1.3
+# Markdown → HTML for the public /methodology page (renders docs/
+# METHODOLOGY.md at request time). Fallback to <pre> if missing, so
+# worker container doesn't need it.
+markdown>=3.5
 
 # Object storage (DO Spaces / S3)
 boto3>=1.34

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Camera Stations - {{ property.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <a href="/properties/{{ property.id }}/cameras" class="text-sm text-teal-600 hover:text-teal-700">&larr; Back to cameras</a>
+        <h1 class="text-2xl font-bold text-slate-700 dark:text-gray-100 mt-2">Camera stations</h1>
+        <p class="text-sm text-slate-500 dark:text-gray-400 mt-1">
+            {{ property.name }} &middot; map the 2&ndash;3-letter station codes
+            you use in photo filenames (<code class="font-mono text-xs">MH</code>,
+            <code class="font-mono text-xs">CW</code>, <code class="font-mono text-xs">BS</code>&hellip;)
+            to placement contexts so the bias-correction layer knows whether
+            each station is near a feeder, on a game trail, by water, or
+            randomly placed.
+        </p>
+    </div>
+
+    <!-- Mint form -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-6">
+        <h2 class="font-semibold text-slate-700 dark:text-gray-100 mb-4">Add a station mapping</h2>
+        <form id="add-form" class="space-y-4">
+            <div class="flex gap-4">
+                <div class="w-32">
+                    <label class="block text-sm text-slate-600 dark:text-gray-300 mb-1">Station code</label>
+                    <input type="text" name="station_code" required maxlength="8"
+                           placeholder="CW" style="text-transform: uppercase;"
+                           class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-mono" />
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm text-slate-600 dark:text-gray-300 mb-1">Placement context</label>
+                    <select name="placement_context" required
+                            class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+                        {% for ctx in placement_contexts %}
+                        <option value="{{ ctx }}">{{ ctx }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-slate-600 dark:text-gray-300 mb-1">Label (optional)</label>
+                <input type="text" name="label" placeholder="Crooked Well — stock tank"
+                       class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <button type="submit"
+                    class="bg-teal-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-teal-700">
+                Add mapping
+            </button>
+            <p id="add-error" class="hidden text-sm text-red-600 mt-2"></p>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <h2 class="font-semibold text-slate-700 dark:text-gray-100 mb-4">Existing mappings</h2>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <th class="py-2">Code</th>
+                    <th class="py-2">Context</th>
+                    <th class="py-2">Label</th>
+                    <th class="py-2 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody id="station-tbody">
+                <tr><td colspan="4" class="py-3 text-slate-400 italic">Loading…</td></tr>
+            </tbody>
+        </table>
+        <p class="text-xs text-slate-400 dark:text-gray-500 mt-4">
+            Station codes are extracted from filenames like
+            <code class="font-mono">CF Pig 2025-05-19 Goldilocks MH.JPG</code>
+            &rarr; <code class="font-mono">MH</code>. Once mapped here, the
+            ingest pipeline auto-sets each Camera's <code>placement_context</code>
+            and the IPW bias correction uses the literature-prior inflation
+            factor for that context.
+        </p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const PID = {{ property.id }};
+    const BASE = "/api/properties/" + PID + "/camera-stations";
+    const tbody = document.getElementById("station-tbody");
+    const contexts = {{ placement_contexts | tojson }};
+
+    function fmtRow(row) {
+        const ctxSelect = contexts.map(c =>
+            `<option value="${c}"${c === row.placement_context ? " selected" : ""}>${c}</option>`
+        ).join("");
+        return `
+            <tr data-code="${row.station_code}" class="border-b border-gray-100 dark:border-gray-700">
+                <td class="py-2 font-mono">${row.station_code}</td>
+                <td class="py-2">
+                    <select class="ctx-edit border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm">
+                        ${ctxSelect}
+                    </select>
+                </td>
+                <td class="py-2">
+                    <input type="text" class="label-edit border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm w-full"
+                           value="${(row.label || "").replace(/"/g, "&quot;")}"
+                           placeholder="(no label)" />
+                </td>
+                <td class="py-2 text-right">
+                    <button class="save-btn text-teal-600 hover:text-teal-700 text-sm mr-2">Save</button>
+                    <button class="del-btn text-red-600 hover:text-red-700 text-sm">Delete</button>
+                </td>
+            </tr>
+        `;
+    }
+
+    async function refresh() {
+        const r = await fetch(BASE, { credentials: "include" });
+        const data = await r.json();
+        const rows = data.camera_stations || data.stations || data || [];
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-slate-400 italic">No mappings yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(fmtRow).join("");
+
+        tbody.querySelectorAll(".save-btn").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                const tr = e.target.closest("tr");
+                const code = tr.dataset.code;
+                const ctx = tr.querySelector(".ctx-edit").value;
+                const label = tr.querySelector(".label-edit").value;
+                const r = await fetch(`${BASE}/${code}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ placement_context: ctx, label }),
+                });
+                if (!r.ok) alert("Save failed: " + (await r.text()));
+                refresh();
+            });
+        });
+        tbody.querySelectorAll(".del-btn").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                const tr = e.target.closest("tr");
+                const code = tr.dataset.code;
+                if (!confirm(`Remove mapping for "${code}"?`)) return;
+                const r = await fetch(`${BASE}/${code}`, {
+                    method: "DELETE", credentials: "include",
+                });
+                if (!r.ok) alert("Delete failed: " + (await r.text()));
+                refresh();
+            });
+        });
+    }
+
+    document.getElementById("add-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = {
+            station_code: (fd.get("station_code") || "").toString().trim().toUpperCase(),
+            placement_context: fd.get("placement_context"),
+            label: fd.get("label") || null,
+        };
+        const errEl = document.getElementById("add-error");
+        errEl.classList.add("hidden");
+        const r = await fetch(BASE, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            errEl.textContent = j.error || `Failed (${r.status})`;
+            errEl.classList.remove("hidden");
+            return;
+        }
+        e.target.reset();
+        refresh();
+    });
+
+    refresh();
+})();
+</script>
+{% endblock %}

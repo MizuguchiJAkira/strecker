@@ -103,6 +103,29 @@ def upload_tokens(property_id):
     return render_template("upload_tokens.html", property=prop)
 
 
+@properties_bp.route("/<int:property_id>/camera-stations")
+@login_required
+def camera_stations(property_id):
+    """Owner-facing page to map hunter-filename station codes (CW, BS,
+    MH, TS, FS …) to Basal placement_context values. The mapping is
+    what lets the IPW bias-correction layer in bias/placement_ipw.py
+    actually run against a hunter's real SD-card data.
+
+    Thin shell around the existing
+    ``/api/properties/<pid>/camera-stations`` JSON API — all the logic
+    lives there; the page just forms + lists + edits.
+    """
+    from config import settings
+    prop = Property.query.get(property_id)
+    if not prop or prop.user_id != current_user.id:
+        abort(404)
+    return render_template(
+        "camera_stations.html",
+        property=prop,
+        placement_contexts=settings.PLACEMENT_CONTEXTS,
+    )
+
+
 @properties_bp.route("/<int:property_id>/dashboard")
 @login_required
 def dashboard(property_id):

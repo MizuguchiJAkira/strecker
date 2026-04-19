@@ -481,6 +481,19 @@ def parcel_report(lender_slug, parcel_id):
     # the section is omitted entirely from the template.
     accuracy = _aggregate_accuracy_reports(parcel)
 
+    # Station code → placement_context mappings the landowner has
+    # registered (see web/routes/api/camera_stations.py). Rendered in
+    # the camera-setup appendix so the reader can see how the IPW
+    # correction's per-camera context was assigned. Empty list when
+    # no codes have been mapped yet.
+    from db.models import CameraStation
+    station_mappings = (
+        CameraStation.query
+        .filter_by(property_id=parcel.id)
+        .order_by(CameraStation.station_code.asc())
+        .all()
+    )
+
     return render_template(
         "lender/parcel_report.html",
         lender=lender,
@@ -495,6 +508,7 @@ def parcel_report(lender_slug, parcel_id):
         exec_summary=exec_summary,
         confidence=confidence,
         accuracy=accuracy,
+        station_mappings=station_mappings,
         on_parcel_cams_json=on_parcel_cams_json,
         neighbor_cams_json=neighbor_cams_json,
         today=date.today(),

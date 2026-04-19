@@ -586,6 +586,44 @@
   </div>
   {% endif %}
 
+  <!-- Station code → placement_context mappings (audit trail for IPW) -->
+  {% if station_mappings %}
+  <div class="mb-8">
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-3">
+      Station codes &amp; placement contexts
+    </h2>
+    <div class="species-card">
+      <div class="field-label mb-3">
+        Filename-embedded station codes mapped to placement contexts
+      </div>
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+            <th class="py-1.5 font-normal uppercase tracking-wide">Code</th>
+            <th class="py-1.5 font-normal uppercase tracking-wide">Context</th>
+            <th class="py-1.5 font-normal uppercase tracking-wide">Label</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for st in station_mappings %}
+          <tr class="border-b border-gray-100 dark:border-gray-700">
+            <td class="py-1.5 mono text-slate-700 dark:text-gray-200">{{ st.station_code }}</td>
+            <td class="py-1.5 text-slate-700 dark:text-gray-200">{{ st.placement_context }}</td>
+            <td class="py-1.5 text-slate-500 dark:text-gray-400">{{ st.label or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-slate-500 dark:text-gray-400 leading-relaxed">
+        These mappings drive per-camera <code>placement_context</code> assignment when
+        filenames embed a station code (e.g. <code class="mono">CF Pig 2025-05-19 Goldilocks MH.JPG</code>
+        &rarr; <code class="mono">MH</code>). The IPW bias-correction layer uses
+        literature-prior inflation factors per context (Kolowski &amp; Forrester 2017).
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Other species (informational) -->
   {% set others = exposures | rejectattr('species_key', 'equalto', 'feral_hog') | list %}
   {% if others %}
