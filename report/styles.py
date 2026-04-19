@@ -432,18 +432,20 @@ def grade_color(grade: str) -> str:
 def section_bar(title: str, width: float):
     """Institutional section header — title over hairline rule.
 
-    Two rows:
-      row 1: Fraunces display title, sentence case (e.g. "Executive
-             Summary"), left-aligned
-      row 2: thin ink rule across the full content width
+    Returns a CondPageBreak guard followed by the header flowable.
+    If less than ~2" of frame height remains when the header
+    renders, ReportLab breaks to the next page first — preventing
+    the section title from landing at the bottom of a page while
+    its intro paragraph floats to the next (the specific orphan
+    pattern that looked weird on pages 6 and 9).
 
-    Deliberately restrained. No uppercase mono eyebrow, no numeric
-    prefix, no colored bar — the title itself carries the hierarchy.
-    This is the idiom used by Goldman Sachs research and McKinsey
-    Global Institute reports, where the running chrome stays quiet
-    and the display type does the work.
+    Returned as a flowable whose single-append behaviour is preserved
+    via a lightweight KeepTogether wrapper that contains the page-
+    break guard + the header.
     """
-    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        CondPageBreak, KeepTogether, Paragraph, Table, TableStyle,
+    )
 
     style = ParagraphStyle(
         "SectionTitle",
@@ -464,7 +466,12 @@ def section_bar(title: str, width: float):
         ("TOPPADDING",    (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
-    return t
+
+    # CondPageBreak(needed_height) — if the frame has less than
+    # ~2" left, break to the next page before rendering the title.
+    # 2" gives comfortable room for the header + 3–4 lines of body.
+    guard = CondPageBreak(2.0 * inch)
+    return KeepTogether([guard, t])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
