@@ -106,44 +106,49 @@ def generate_report(
         canvas.restoreState()
 
     def _content_page(canvas, doc):
-        """Content pages — hairline black rules, italic serif folio."""
+        """Content pages — bone paper, mono masthead on hairline.
+
+        Editorial chrome: a thin ink rule top and bottom, mono
+        masthead and folio so the page reads like a design journal,
+        not a bank slide deck.
+        """
         canvas.saveState()
 
-        # Paint page background white (explicit — future-proofs against
-        # any host that defaults the canvas to something else).
+        # Paint page background bone (warm paper).
         canvas.setFillColor(PAGE_BG)
         canvas.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
 
-        # Header: thin navy hairline rule
+        # Header hairline
         y_top = PAGE_HEIGHT - 0.55 * inch
-        canvas.setStrokeColor(BRAND_NAVY)
+        canvas.setStrokeColor(BRAND_NAVY)  # = INK in the new palette
         canvas.setLineWidth(0.6)
         canvas.line(MARGIN_LEFT, y_top,
                     PAGE_WIDTH - MARGIN_RIGHT, y_top)
 
-        # Header text — italic serif masthead in navy
-        canvas.setFont(FONTS["serif_italic"], 8)
+        # Header masthead — mono uppercase, left "BASAL INFORMATICS",
+        # right "NATURE EXPOSURE REPORT · <parcel_id>"
+        canvas.setFont(FONTS["mono_regular"], 7.5)
         canvas.setFillColor(BRAND_NAVY)
         parcel_id = assessment.get("parcel_id", "")
         canvas.drawString(MARGIN_LEFT, y_top + 4,
-                          f"Nature Exposure Report  ·  {parcel_id}")
+                          "BASAL INFORMATICS")
         canvas.drawRightString(PAGE_WIDTH - MARGIN_RIGHT, y_top + 4,
-                               "Basal Informatics")
+                               f"NATURE EXPOSURE · {parcel_id}".upper())
 
-        # Footer: thin navy hairline rule
+        # Footer hairline
         y_bot = 0.55 * inch
         canvas.setStrokeColor(BRAND_NAVY)
         canvas.setLineWidth(0.6)
         canvas.line(MARGIN_LEFT, y_bot,
                     PAGE_WIDTH - MARGIN_RIGHT, y_bot)
-        canvas.setFont(FONTS["serif_italic"], 8)
+        canvas.setFont(FONTS["mono_regular"], 7.5)
         canvas.setFillColor(TEXT_SECONDARY)
         canvas.drawString(MARGIN_LEFT, y_bot - 12,
-                          "Confidential — prepared for authorized "
-                          "recipients only")
+                          "CONFIDENTIAL — AUTHORIZED RECIPIENTS ONLY")
         canvas.setFillColor(BRAND_NAVY)
+        # Page number as "02." — serialised folio
         canvas.drawRightString(PAGE_WIDTH - MARGIN_RIGHT, y_bot - 12,
-                               f"{doc.page}")
+                               f"{doc.page:02d}.")
 
         canvas.restoreState()
 

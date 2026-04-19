@@ -1,19 +1,25 @@
-"""PDF styling constants and ReportLab style definitions.
+"""PDF styling — editorial voice, to match basal.eco.
 
-Design language: insurer-grade documentation in the McKinsey idiom.
-Libre Baskerville serif throughout. Disciplined use of color:
-  * Navy  (#0F2847) — primary accent, header bars, category chips,
-                      hog/primary chart series
-  * Blue  (#3A8BD1) — secondary series, lighter category chips
-  * Teal  (#2B9B94) — single vivid highlight, used sparingly (exposure
-                      gauge arc, captured-value markers)
-  * Gray  (#C7CDD4) — baselines, budget rails, outlines
-  * Black (#0A0A0A) — body text, rules
-  * White (#FFFFFF) — paper
+Design language inherited from the website:
 
-The cover is near-black ground with cream type; content pages are
-white paper with navy section bars and black body type. Color is
-reserved for data — the voice stays restrained.
+  * Fraunces (Display + 9pt) — display type, titles, pull quotes
+  * Inter — body copy and captions
+  * JetBrains Mono — eyebrows, data, tabular figures
+
+Palette:
+
+  * Ink        #0c0d0a — near-black
+  * Bone       #f4f1ea — warm paper
+  * Forest     #1c2118 — deep forest, used for section rules
+  * Forest-lit #8a9a74 — one green accent; data highlights
+  * Stone-*    neutral gray ramp for secondary ink and tables
+
+The page is bone paper with ink type. Color is reserved for data —
+the voice stays restrained. One accent (forest-lit) per page at most.
+
+Legacy constants (BRAND_NAVY, BRAND_BLUE, RISK_* …) are preserved as
+aliases pointing at the new tokens so the eight section modules keep
+rendering without edits.
 """
 
 from pathlib import Path
@@ -26,337 +32,378 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Font registration (Libre Baskerville — entire report)
+# Font registration — Fraunces + Inter + JetBrains Mono
 # ═══════════════════════════════════════════════════════════════════════════
 
 _FONT_DIR = Path(__file__).parent / "assets" / "fonts"
-_BASKERVILLE_AVAILABLE = False
-try:
-    pdfmetrics.registerFont(TTFont(
-        "LibreBaskerville",
-        str(_FONT_DIR / "LibreBaskerville-Regular.ttf")))
-    pdfmetrics.registerFont(TTFont(
-        "LibreBaskerville-Bold",
-        str(_FONT_DIR / "LibreBaskerville-Bold.ttf")))
-    pdfmetrics.registerFont(TTFont(
-        "LibreBaskerville-Italic",
-        str(_FONT_DIR / "LibreBaskerville-Italic.ttf")))
-    # Register a family so inline <b>/<i> markup in Paragraph resolves.
-    pdfmetrics.registerFontFamily(
-        "LibreBaskerville",
-        normal="LibreBaskerville",
-        bold="LibreBaskerville-Bold",
-        italic="LibreBaskerville-Italic",
-        boldItalic="LibreBaskerville-Bold",
-    )
-    _BASKERVILLE_AVAILABLE = True
-except Exception:
-    # Graceful fallback — if fonts are missing, fall back to Times-Roman
-    pass
 
-SERIF_REGULAR = "LibreBaskerville" if _BASKERVILLE_AVAILABLE else "Times-Roman"
-SERIF_BOLD = "LibreBaskerville-Bold" if _BASKERVILLE_AVAILABLE else "Times-Bold"
-SERIF_ITALIC = ("LibreBaskerville-Italic"
-                if _BASKERVILLE_AVAILABLE else "Times-Italic")
+
+def _register(name: str, filename: str) -> bool:
+    try:
+        pdfmetrics.registerFont(TTFont(name, str(_FONT_DIR / filename)))
+        return True
+    except Exception:
+        return False
+
+
+_FRAUNCES_OK = all([
+    _register("Fraunces",         "Fraunces-Regular.ttf"),
+    _register("Fraunces-Bold",    "Fraunces-Bold.ttf"),
+    _register("Fraunces-Italic",  "Fraunces-Italic.ttf"),
+    _register("Fraunces-Display", "Fraunces-Display.ttf"),
+])
+_INTER_OK = all([
+    _register("Inter",            "Inter-Regular.ttf"),
+    _register("Inter-Medium",     "Inter-Medium.ttf"),
+    _register("Inter-SemiBold",   "Inter-SemiBold.ttf"),
+    _register("Inter-Italic",     "Inter-Italic.ttf"),
+])
+_MONO_OK = all([
+    _register("JetBrainsMono",        "JetBrainsMono-Regular.ttf"),
+    _register("JetBrainsMono-Medium", "JetBrainsMono-Medium.ttf"),
+])
+
+if _FRAUNCES_OK:
+    pdfmetrics.registerFontFamily(
+        "Fraunces",
+        normal="Fraunces", bold="Fraunces-Bold",
+        italic="Fraunces-Italic", boldItalic="Fraunces-Bold",
+    )
+if _INTER_OK:
+    pdfmetrics.registerFontFamily(
+        "Inter",
+        normal="Inter", bold="Inter-SemiBold",
+        italic="Inter-Italic", boldItalic="Inter-SemiBold",
+    )
+
+# Font-name aliases (logical role → physical font)
+SERIF_DISPLAY = "Fraunces-Display" if _FRAUNCES_OK else "Times-Bold"
+SERIF_REGULAR = "Fraunces"         if _FRAUNCES_OK else "Times-Roman"
+SERIF_BOLD    = "Fraunces-Bold"    if _FRAUNCES_OK else "Times-Bold"
+SERIF_ITALIC  = "Fraunces-Italic"  if _FRAUNCES_OK else "Times-Italic"
+SANS_REGULAR  = "Inter"            if _INTER_OK    else "Helvetica"
+SANS_MEDIUM   = "Inter-Medium"     if _INTER_OK    else "Helvetica"
+SANS_BOLD     = "Inter-SemiBold"   if _INTER_OK    else "Helvetica-Bold"
+SANS_ITALIC   = "Inter-Italic"     if _INTER_OK    else "Helvetica-Oblique"
+MONO_REGULAR  = "JetBrainsMono"        if _MONO_OK else "Courier"
+MONO_MEDIUM   = "JetBrainsMono-Medium" if _MONO_OK else "Courier-Bold"
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Disciplined McKinsey palette — navy primary, teal accent
+# Palette — editorial, from basal.eco
 # ═══════════════════════════════════════════════════════════════════════════
 
 COLORS = {
     # Surfaces
-    "page_bg": "#FFFFFF",        # white paper
-    "cover_bg": "#0A0A0A",       # near-black cover ground
+    "page_bg":  "#f4f1ea",  # bone paper (content pages)
+    "cover_bg": "#0c0d0a",  # ink (cover page, full-bleed)
     # Ink
-    "text_primary": "#0A0A0A",   # near-black body text
-    "text_secondary": "#525252", # neutral mid-gray
-    "text_muted": "#8A8A8A",     # neutral light gray
-    # Brand colors — the three hues that carry data
-    "brand_navy": "#0F2847",       # header bars, primary data, category chips
-    "brand_navy_deep": "#0A1E3A",  # cover bar / deepest navy
-    "brand_blue": "#3A8BD1",       # secondary series
-    "brand_blue_light": "#BBD5EC", # light category chip fill
-    "brand_teal": "#2B9B94",       # single vivid accent — exposure gauge
-    # Back-compat aliases
-    "brand_accent": "#2B9B94",
-    # Risk scale — navy descent, teal never used for risk
-    "risk_critical": "#0F2847",  # deep navy
-    "risk_high": "#1F4171",
-    "risk_elevated": "#3A8BD1",
-    "risk_moderate": "#6BA7D8",
-    "risk_low": "#B5CADF",
-    # Chart series — hog is the primary subject, always navy
-    "chart_primary": "#0F2847",    # navy — hog / main subject
-    "chart_secondary": "#3A8BD1",  # blue — secondary species
-    "chart_tertiary": "#8FB5D7",   # pale blue — tertiary
-    "chart_neutral": "#C7CDD4",    # gray baseline / budget rail
-    # Back-compat aliases
-    "chart_unmanaged": "#0F2847",
-    "chart_managed": "#3A8BD1",
-    "chart_avoidable": "#C7CDD4",
+    "text_primary":   "#0c0d0a",
+    "text_secondary": "#595650",  # warm mid gray
+    "text_muted":     "#8a877f",  # warm light gray
+    # Accent — single green, used sparingly
+    "forest":      "#1c2118",  # deep forest (section rules, data strokes)
+    "forest_lit":  "#8a9a74",  # forest-lit (single data accent)
+    # Legacy-named aliases so section modules keep rendering
+    # (they reference BRAND_NAVY, BRAND_BLUE, BRAND_TEAL, etc.)
+    "brand_navy":       "#0c0d0a",  # redirected to ink
+    "brand_navy_deep":  "#0c0d0a",
+    "brand_blue":       "#8a9a74",  # redirected to forest-lit
+    "brand_blue_light": "#d8dcc8",  # pale forest tint
+    "brand_teal":       "#8a9a74",
+    "brand_accent":     "#8a9a74",
+    # Risk ramp — ink descent (deep → pale forest tint)
+    "risk_critical":  "#0c0d0a",
+    "risk_high":      "#2b2d29",
+    "risk_elevated":  "#595650",
+    "risk_moderate":  "#8a9a74",
+    "risk_low":       "#d8dcc8",
+    # Chart series
+    "chart_primary":   "#0c0d0a",  # ink — primary subject
+    "chart_secondary": "#8a9a74",  # forest-lit — secondary
+    "chart_tertiary":  "#bdbdb4",  # warm gray — tertiary
+    "chart_neutral":   "#c8c5bd",  # warm gridline
+    # Back-compat
+    "chart_unmanaged": "#0c0d0a",
+    "chart_managed":   "#8a9a74",
+    "chart_avoidable": "#c8c5bd",
     # Structure
-    "gridline": "#E1E4E8",       # hairline rule
-    "border_light": "#C7CDD4",
-    "table_header_bg": "#FFFFFF",
-    "table_header_text": "#0A0A0A",
-    "table_alt_row": "#F7F8FA",
-    "section_bar_bg": "#0F2847", # navy band behind H1 section headers
-    "section_bar_text": "#FFFFFF",
-    "background": "#FFFFFF",
+    "gridline":         "#d8d5cd",  # hairline on bone
+    "border_light":     "#c8c5bd",
+    "table_header_bg":  "#f4f1ea",
+    "table_header_text": "#0c0d0a",
+    "table_alt_row":    "#ecE8df",
+    "section_bar_bg":   "#0c0d0a",  # black eyebrow bar (editorial)
+    "section_bar_text": "#f4f1ea",
+    "background":       "#f4f1ea",
 }
 
 # ReportLab color objects
-PAGE_BG = colors.HexColor(COLORS["page_bg"])
-COVER_BG = colors.HexColor(COLORS["cover_bg"])
-BRAND_NAVY = colors.HexColor(COLORS["brand_navy"])
-BRAND_NAVY_DEEP = colors.HexColor(COLORS["brand_navy_deep"])
-BRAND_BLUE = colors.HexColor(COLORS["brand_blue"])
+PAGE_BG        = colors.HexColor(COLORS["page_bg"])
+COVER_BG       = colors.HexColor(COLORS["cover_bg"])
+INK            = colors.HexColor(COLORS["text_primary"])
+BONE           = colors.HexColor(COLORS["page_bg"])
+FOREST         = colors.HexColor(COLORS["forest"])
+FOREST_LIT     = colors.HexColor(COLORS["forest_lit"])
+BRAND_NAVY      = INK
+BRAND_NAVY_DEEP = INK
+BRAND_BLUE      = FOREST_LIT
 BRAND_BLUE_LIGHT = colors.HexColor(COLORS["brand_blue_light"])
-BRAND_TEAL = colors.HexColor(COLORS["brand_teal"])
-BRAND_ACCENT = BRAND_TEAL
-TEXT_PRIMARY = colors.HexColor(COLORS["text_primary"])
-TEXT_SECONDARY = colors.HexColor(COLORS["text_secondary"])
-TEXT_MUTED = colors.HexColor(COLORS["text_muted"])
-RISK_CRITICAL = colors.HexColor(COLORS["risk_critical"])
-RISK_HIGH = colors.HexColor(COLORS["risk_high"])
-RISK_ELEVATED = colors.HexColor(COLORS["risk_elevated"])
-RISK_LOW = colors.HexColor(COLORS["risk_low"])
+BRAND_TEAL      = FOREST_LIT
+BRAND_ACCENT    = FOREST_LIT
+TEXT_PRIMARY    = INK
+TEXT_SECONDARY  = colors.HexColor(COLORS["text_secondary"])
+TEXT_MUTED      = colors.HexColor(COLORS["text_muted"])
+RISK_CRITICAL   = colors.HexColor(COLORS["risk_critical"])
+RISK_HIGH       = colors.HexColor(COLORS["risk_high"])
+RISK_ELEVATED   = colors.HexColor(COLORS["risk_elevated"])
+RISK_LOW        = colors.HexColor(COLORS["risk_low"])
 TABLE_HEADER_BG = colors.HexColor(COLORS["table_header_bg"])
-TABLE_HEADER_TEXT = colors.HexColor(COLORS["table_header_text"])
-TABLE_ALT_ROW = colors.HexColor(COLORS["table_alt_row"])
-GRIDLINE = colors.HexColor(COLORS["gridline"])
-BORDER_LIGHT = colors.HexColor(COLORS["border_light"])
-SECTION_BAR_BG = colors.HexColor(COLORS["section_bar_bg"])
-SECTION_BAR_TEXT = colors.HexColor(COLORS["section_bar_text"])
+TABLE_HEADER_TEXT = INK
+TABLE_ALT_ROW   = colors.HexColor(COLORS["table_alt_row"])
+GRIDLINE        = colors.HexColor(COLORS["gridline"])
+BORDER_LIGHT    = colors.HexColor(COLORS["border_light"])
+SECTION_BAR_BG  = INK
+SECTION_BAR_TEXT = BONE
 
-# Cover palette — used by cover.py + generator._cover_page
-COVER_TEXT = colors.HexColor("#F5F1E8")
-COVER_MUTED = colors.HexColor("#9A958A")
-COVER_RULE = colors.HexColor("#2A2A2A")
+# Cover palette
+COVER_TEXT  = colors.HexColor("#f4f1ea")  # bone on ink
+COVER_MUTED = colors.HexColor("#8a877f")
+COVER_RULE  = colors.HexColor("#2b2d29")
+COVER_ACCENT = colors.HexColor(COLORS["forest_lit"])
 
 FONTS = {
-    # All "body" and "heading" references resolve to Libre Baskerville
-    # so the serif voice runs from cover to methodology.
-    "heading": SERIF_BOLD,
-    "body": SERIF_REGULAR,
-    "italic": SERIF_ITALIC,
-    "mono": "Courier",
+    # Legacy role map — kept so sections that read FONTS[...] still work
+    "heading":       SERIF_BOLD,
+    "body":          SANS_REGULAR,
+    "italic":        SERIF_ITALIC,
+    "mono":          MONO_REGULAR,
+    "display":       SERIF_DISPLAY,
     "serif_regular": SERIF_REGULAR,
-    "serif_bold": SERIF_BOLD,
-    "serif_italic": SERIF_ITALIC,
+    "serif_bold":    SERIF_BOLD,
+    "serif_italic":  SERIF_ITALIC,
+    "sans_regular":  SANS_REGULAR,
+    "sans_bold":     SANS_BOLD,
+    "mono_regular":  MONO_REGULAR,
+    "mono_medium":   MONO_MEDIUM,
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Page dimensions (US Letter)
 # ═══════════════════════════════════════════════════════════════════════════
 
-PAGE_WIDTH = 8.5 * inch
-PAGE_HEIGHT = 11 * inch
-MARGIN_LEFT = 0.85 * inch
-MARGIN_RIGHT = 0.85 * inch
-MARGIN_TOP = 0.85 * inch
+PAGE_WIDTH    = 8.5 * inch
+PAGE_HEIGHT   = 11  * inch
+MARGIN_LEFT   = 0.85 * inch
+MARGIN_RIGHT  = 0.85 * inch
+MARGIN_TOP    = 0.85 * inch
 MARGIN_BOTTOM = 0.85 * inch
 CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Paragraph styles — serif hierarchy
+# Paragraph styles — editorial hierarchy
+#
+# Display type is Fraunces (72pt-SemiBold). Body is Inter. Eyebrows
+# and data are JetBrains Mono, uppercased with tight tracking.
 # ═══════════════════════════════════════════════════════════════════════════
 
 STYLE_TITLE = ParagraphStyle(
     "ReportTitle",
-    fontName=SERIF_BOLD, fontSize=30, leading=36,
-    textColor=TEXT_PRIMARY, alignment=TA_LEFT, spaceAfter=6,
+    fontName=SERIF_DISPLAY, fontSize=32, leading=38,
+    textColor=INK, alignment=TA_LEFT, spaceAfter=6,
 )
 
 STYLE_SUBTITLE = ParagraphStyle(
     "ReportSubtitle",
-    fontName=SERIF_ITALIC, fontSize=12, leading=17,
+    fontName=SERIF_ITALIC, fontSize=13, leading=18,
     textColor=TEXT_SECONDARY, alignment=TA_LEFT, spaceAfter=12,
 )
 
 STYLE_H1 = ParagraphStyle(
     "H1",
-    fontName=SERIF_BOLD, fontSize=22, leading=26,
-    textColor=TEXT_PRIMARY, spaceBefore=0, spaceAfter=6,
+    fontName=SERIF_DISPLAY, fontSize=26, leading=30,
+    textColor=INK, spaceBefore=0, spaceAfter=8,
 )
 
-# Used inside the navy section-bar Table — white serif on navy
+# Reserved name — used inside the numbered header strip.
+# Now a mono eyebrow, not a centered serif on navy.
 STYLE_H1_BAR = ParagraphStyle(
     "H1Bar",
-    fontName=SERIF_BOLD, fontSize=14, leading=18,
-    textColor=SECTION_BAR_TEXT, alignment=TA_CENTER,
+    fontName=MONO_REGULAR, fontSize=9, leading=12,
+    textColor=INK, alignment=TA_LEFT,
     spaceBefore=0, spaceAfter=0,
 )
 
 STYLE_H2 = ParagraphStyle(
     "H2",
-    fontName=SERIF_BOLD, fontSize=13, leading=17,
-    textColor=colors.HexColor(COLORS["brand_navy"]),
-    spaceBefore=14, spaceAfter=5,
+    fontName=SERIF_BOLD, fontSize=15, leading=19,
+    textColor=INK,
+    spaceBefore=16, spaceAfter=6,
 )
 
 STYLE_H3 = ParagraphStyle(
     "H3",
-    fontName=SERIF_ITALIC, fontSize=11, leading=14,
-    textColor=colors.HexColor(COLORS["brand_navy"]),
-    spaceBefore=8, spaceAfter=3,
+    fontName=SANS_BOLD, fontSize=10, leading=14,
+    textColor=INK,
+    spaceBefore=10, spaceAfter=3,
 )
 
 STYLE_EYEBROW = ParagraphStyle(
     "Eyebrow",
-    fontName=SERIF_ITALIC, fontSize=9, leading=12,
+    fontName=MONO_REGULAR, fontSize=8.5, leading=11,
     textColor=TEXT_SECONDARY, alignment=TA_LEFT,
-    spaceBefore=0, spaceAfter=3,
+    spaceBefore=0, spaceAfter=4,
 )
 
 STYLE_BODY = ParagraphStyle(
     "Body",
-    fontName=SERIF_REGULAR, fontSize=9.5, leading=14,
-    textColor=TEXT_PRIMARY, alignment=TA_JUSTIFY, spaceAfter=6,
+    fontName=SANS_REGULAR, fontSize=10, leading=15,
+    textColor=INK, alignment=TA_JUSTIFY, spaceAfter=7,
 )
 
 STYLE_BODY_SMALL = ParagraphStyle(
     "BodySmall",
-    fontName=SERIF_REGULAR, fontSize=8, leading=11,
+    fontName=SANS_REGULAR, fontSize=8.5, leading=12,
     textColor=TEXT_SECONDARY, alignment=TA_JUSTIFY, spaceAfter=4,
 )
 
 STYLE_CAPTION = ParagraphStyle(
     "Caption",
-    fontName=SERIF_ITALIC, fontSize=7.5, leading=10,
-    textColor=TEXT_SECONDARY, alignment=TA_LEFT, spaceAfter=4, spaceBefore=2,
+    fontName=MONO_REGULAR, fontSize=7.5, leading=10,
+    textColor=TEXT_SECONDARY, alignment=TA_LEFT,
+    spaceAfter=4, spaceBefore=2,
 )
 
 STYLE_METRIC_LARGE = ParagraphStyle(
     "MetricLarge",
-    fontName=SERIF_BOLD, fontSize=42, leading=46,
-    textColor=TEXT_PRIMARY, alignment=TA_CENTER,
+    fontName=SERIF_DISPLAY, fontSize=48, leading=52,
+    textColor=INK, alignment=TA_CENTER,
 )
 
 STYLE_METRIC_LABEL = ParagraphStyle(
     "MetricLabel",
-    fontName=SERIF_ITALIC, fontSize=9, leading=12,
+    fontName=MONO_REGULAR, fontSize=8, leading=11,
     textColor=TEXT_SECONDARY, alignment=TA_CENTER,
 )
 
 STYLE_FOOTNOTE = ParagraphStyle(
     "Footnote",
-    fontName=SERIF_ITALIC, fontSize=7.5, leading=10,
+    fontName=SANS_ITALIC, fontSize=7.5, leading=10,
     textColor=TEXT_SECONDARY, alignment=TA_LEFT, spaceBefore=8,
 )
 
 STYLE_CITATION = ParagraphStyle(
     "Citation",
-    fontName=SERIF_REGULAR, fontSize=8, leading=11,
+    fontName=SANS_REGULAR, fontSize=8, leading=11,
     textColor=TEXT_SECONDARY, alignment=TA_LEFT,
     leftIndent=14, firstLineIndent=-14, spaceAfter=4,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
-# Cover page styles (same family, inverted palette)
+# Cover page styles — ink ground, bone type, forest-lit accents
 # ═══════════════════════════════════════════════════════════════════════════
 
 STYLE_COVER_WORDMARK = ParagraphStyle(
     "CoverWordmark",
-    fontName=SERIF_ITALIC, fontSize=11, leading=14,
+    fontName=MONO_REGULAR, fontSize=9, leading=12,
     textColor=COVER_TEXT, alignment=TA_LEFT,
 )
 
 STYLE_COVER_LABEL = ParagraphStyle(
     "CoverLabel",
-    fontName=SERIF_REGULAR, fontSize=8, leading=11,
+    fontName=MONO_REGULAR, fontSize=8, leading=11,
     textColor=COVER_MUTED, alignment=TA_LEFT,
 )
 
 STYLE_COVER_EYEBROW = ParagraphStyle(
     "CoverEyebrow",
-    fontName=SERIF_REGULAR, fontSize=9, leading=12,
-    textColor=COVER_MUTED, alignment=TA_LEFT,
-    spaceAfter=6,
+    fontName=MONO_REGULAR, fontSize=9, leading=12,
+    textColor=COVER_ACCENT, alignment=TA_LEFT,
+    spaceAfter=10,
 )
 
 STYLE_COVER_TITLE = ParagraphStyle(
     "CoverTitle",
-    fontName=SERIF_BOLD, fontSize=42, leading=48,
+    fontName=SERIF_DISPLAY, fontSize=56, leading=62,
     textColor=COVER_TEXT, alignment=TA_LEFT,
-    spaceAfter=10,
+    spaceAfter=12,
 )
 
 STYLE_COVER_SUBTITLE = ParagraphStyle(
     "CoverSubtitle",
-    fontName=SERIF_ITALIC, fontSize=13, leading=18,
+    fontName=SERIF_ITALIC, fontSize=14, leading=20,
     textColor=COVER_TEXT, alignment=TA_LEFT,
-    spaceAfter=4,
+    spaceAfter=6,
 )
 
 STYLE_COVER_META_KEY = ParagraphStyle(
     "CoverMetaKey",
-    fontName=SERIF_REGULAR, fontSize=8, leading=11,
+    fontName=MONO_REGULAR, fontSize=7.5, leading=11,
     textColor=COVER_MUTED, alignment=TA_LEFT,
 )
 
 STYLE_COVER_META_VAL = ParagraphStyle(
     "CoverMetaVal",
-    fontName=SERIF_REGULAR, fontSize=9.5, leading=12,
+    fontName=SANS_MEDIUM, fontSize=10, leading=13,
     textColor=COVER_TEXT, alignment=TA_LEFT,
 )
 
 STYLE_COVER_CAPTION = ParagraphStyle(
     "CoverCaption",
-    fontName=SERIF_ITALIC, fontSize=7.5, leading=10,
+    fontName=MONO_REGULAR, fontSize=7.5, leading=10,
     textColor=COVER_MUTED, alignment=TA_LEFT,
 )
 
 STYLE_COVER_FOOTER = ParagraphStyle(
     "CoverFooter",
-    fontName=SERIF_REGULAR, fontSize=8, leading=11,
+    fontName=MONO_REGULAR, fontSize=7.5, leading=11,
     textColor=COVER_MUTED, alignment=TA_LEFT,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════
-# Table style helpers — monochrome rule-driven
+# Table style — hairline rules, tabular mono numerals
 # ═══════════════════════════════════════════════════════════════════════════
 
 def base_table_style(n_rows: int) -> list:
-    """McKinsey-idiom table styling: navy header rule stack.
+    """Editorial table — hairline top + bottom, mono numerals.
 
-    Header is serif bold on white, opened by a thick navy rule and
-    closed by a hairline navy rule. Body rows are separated by
-    hairline gray rules. The table closes with a thick navy bottom
-    rule — the thick-thin-thin-thick stack of a financial statement.
+    Header: tiny mono uppercase with a thin ink rule above and hair
+    rule below. Body rows: Inter sans, hairline separators. Close with
+    a thin ink bottom rule. The whole table reads as a block of
+    financial-editorial tabular type, not a colored matrix.
     """
     cmds = [
         # Header
-        ("FONTNAME", (0, 0), (-1, 0), SERIF_BOLD),
-        ("FONTSIZE", (0, 0), (-1, 0), 8),
-        ("TEXTCOLOR", (0, 0), (-1, 0), BRAND_NAVY),
-        ("LINEABOVE", (0, 0), (-1, 0), 1.2, BRAND_NAVY),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.4, BRAND_NAVY),
+        ("FONTNAME",  (0, 0), (-1, 0), MONO_REGULAR),
+        ("FONTSIZE",  (0, 0), (-1, 0), 7.5),
+        ("TEXTCOLOR", (0, 0), (-1, 0), TEXT_SECONDARY),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.8, INK),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.25, INK),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING",    (0, 0), (-1, 0), 6),
         # Body
-        ("FONTNAME", (0, 1), (-1, -1), SERIF_REGULAR),
-        ("FONTSIZE", (0, 1), (-1, -1), 8.5),
-        ("TEXTCOLOR", (0, 1), (-1, -1), TEXT_PRIMARY),
+        ("FONTNAME",  (0, 1), (-1, -1), SANS_REGULAR),
+        ("FONTSIZE",  (0, 1), (-1, -1), 9),
+        ("TEXTCOLOR", (0, 1), (-1, -1), INK),
         # Layout
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("ALIGN",  (0, 0), (-1, -1), "LEFT"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        # Hairline row separators, thick navy bottom rule
-        ("LINEBELOW", (0, 1), (-1, -2), 0.25, GRIDLINE),
-        ("LINEBELOW", (0, -1), (-1, -1), 1.0, BRAND_NAVY),
+        ("TOPPADDING",    (0, 1), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 2),
+        # Row separators + closing rule
+        ("LINEBELOW", (0, 1), (-1, -2), 0.2, GRIDLINE),
+        ("LINEBELOW", (0, -1), (-1, -1), 0.8, INK),
     ]
     return cmds
 
 
 def risk_color(rating: str) -> colors.HexColor:
-    """Return a navy-descending color for a risk rating string.
+    """Return an ink-descending color for a risk rating string.
 
-    CRITICAL is deepest navy; LOW fades to pale blue. The ramp stays
-    inside the blue family so it reads as one visual system.
+    CRITICAL is deepest ink; LOW fades to pale forest tint. The ramp
+    stays monochromatic (one warm neutral family) so it reads as a
+    single visual system.
     """
     r = (rating or "").upper()
     if "CRITICAL" in r:
@@ -369,52 +416,67 @@ def risk_color(rating: str) -> colors.HexColor:
 
 
 def grade_color(grade: str) -> str:
-    """Return hex color for a confidence grade (navy ramp)."""
+    """Hex for a confidence grade (ink-descending ramp)."""
     if grade.startswith("A"):
-        return COLORS["brand_navy"]
+        return COLORS["risk_critical"]  # ink
     if grade.startswith("B"):
         return COLORS["risk_high"]
     if grade.startswith("C"):
-        return COLORS["brand_blue"]
+        return COLORS["risk_elevated"]
     return COLORS["text_secondary"]
 
 
 def section_bar(title: str, width: float):
-    """Build a McKinsey-style navy section header bar.
+    """Editorial section header — numbered eyebrow on hairline rule.
 
-    Returns a ReportLab flowable (Table) that paints a ~0.35-inch
-    navy strip with centered white serif-bold text, to be used as
-    the H1 equivalent on content pages.
+    Rendered as a two-row table:
+      row 1: a thin ink hairline (the rule)
+      row 2: "NN · SECTION TITLE" in mono uppercase, ink on bone
+
+    Returns a flowable that can be dropped where the old navy bar
+    was placed. The caller passes a title string like
+    "02 · EXECUTIVE SUMMARY"; if it lacks a numeric prefix we wrap it
+    verbatim.
     """
     from reportlab.platypus import Paragraph, Table, TableStyle
-    p = Paragraph(title, STYLE_H1_BAR)
-    t = Table([[p]], colWidths=[width], rowHeights=[0.36 * inch])
+
+    upper = title.upper()
+    style = ParagraphStyle(
+        "SectionEyebrow",
+        fontName=MONO_REGULAR, fontSize=9, leading=12,
+        textColor=INK, alignment=TA_LEFT,
+    )
+    p = Paragraph(upper, style)
+    t = Table(
+        [[""], [p]],
+        colWidths=[width],
+        rowHeights=[0.02 * inch, 0.28 * inch],
+    )
     t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), SECTION_BAR_BG),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LINEABOVE",     (0, 0), (-1, 0), 0.8, INK),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 0),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 4),
     ]))
     return t
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Matplotlib monochrome style
+# Matplotlib — editorial chart style
 # ═══════════════════════════════════════════════════════════════════════════
 
 _MPL_CONFIGURED = False
 
 
 def setup_chart_style() -> None:
-    """Apply monochrome matplotlib rcParams — call before creating figures.
+    """rcParams so charts feel like they belong in this document.
 
-    Registers Libre Baskerville with matplotlib, switches font family
-    to serif, and sets white facecolors + neutral axis/grid colors so
-    charts feel like they belong in the same document as the serif
-    body text.
+    Fraunces for titles, Inter for labels (via matplotlib's fallback
+    chain — we register what we have). Bone figure face, warm gray
+    gridlines, ink axes. Data series use the COLORS['chart_*'] ramp.
     """
     global _MPL_CONFIGURED
     if _MPL_CONFIGURED:
@@ -424,35 +486,33 @@ def setup_chart_style() -> None:
     matplotlib.use("Agg")
     from matplotlib import font_manager, rcParams
 
-    if _BASKERVILLE_AVAILABLE:
-        try:
-            for fname in (
-                "LibreBaskerville-Regular.ttf",
-                "LibreBaskerville-Bold.ttf",
-                "LibreBaskerville-Italic.ttf",
-            ):
-                font_manager.fontManager.addfont(str(_FONT_DIR / fname))
-            rcParams["font.family"] = "serif"
-            rcParams["font.serif"] = ["Libre Baskerville"] + list(
-                rcParams.get("font.serif", []))
-        except Exception:
-            rcParams["font.family"] = "serif"
-    else:
-        rcParams["font.family"] = "serif"
+    # Register any TTFs we have with matplotlib so serif/sans resolve.
+    if _FRAUNCES_OK or _INTER_OK or _MONO_OK:
+        for fname in _FONT_DIR.glob("*.ttf"):
+            try:
+                font_manager.fontManager.addfont(str(fname))
+            except Exception:
+                pass
+
+    rcParams["font.family"] = "serif"
+    rcParams["font.serif"]  = ["Fraunces", "Times New Roman", "serif"]
+    rcParams["font.sans-serif"] = ["Inter", "Helvetica", "Arial", "sans-serif"]
 
     rcParams["figure.facecolor"] = COLORS["page_bg"]
-    rcParams["axes.facecolor"] = COLORS["page_bg"]
+    rcParams["axes.facecolor"]   = COLORS["page_bg"]
     rcParams["savefig.facecolor"] = COLORS["page_bg"]
     rcParams["savefig.edgecolor"] = COLORS["page_bg"]
-    rcParams["text.color"] = COLORS["text_primary"]
-    rcParams["axes.labelcolor"] = COLORS["text_secondary"]
-    rcParams["axes.edgecolor"] = COLORS["text_primary"]
-    rcParams["xtick.color"] = COLORS["text_secondary"]
-    rcParams["ytick.color"] = COLORS["text_secondary"]
-    rcParams["grid.color"] = COLORS["gridline"]
-    rcParams["axes.titlecolor"] = COLORS["brand_navy"]
+    rcParams["text.color"]       = COLORS["text_primary"]
+    rcParams["axes.labelcolor"]  = COLORS["text_secondary"]
+    rcParams["axes.edgecolor"]   = COLORS["text_primary"]
+    rcParams["xtick.color"]      = COLORS["text_secondary"]
+    rcParams["ytick.color"]      = COLORS["text_secondary"]
+    rcParams["grid.color"]       = COLORS["gridline"]
+    rcParams["axes.titlecolor"]  = COLORS["text_primary"]
     rcParams["axes.titleweight"] = "bold"
-    rcParams["legend.frameon"] = False
+    rcParams["legend.frameon"]   = False
+    rcParams["axes.spines.top"]   = False
+    rcParams["axes.spines.right"] = False
 
     _MPL_CONFIGURED = True
 
