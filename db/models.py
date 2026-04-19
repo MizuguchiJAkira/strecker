@@ -204,6 +204,53 @@ class Camera(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# CameraStation — per-property mapping of hunter station-code -> context
+# ---------------------------------------------------------------------------
+
+class CameraStation(db.Model):
+    """Maps a hunter-assigned camera-station short code (e.g. ``CW``,
+    ``BS``, ``MH``, ``TS``, ``FS``) to a ``placement_context`` for a
+    given property.
+
+    Hunters routinely fold a station code into their filenames — e.g.
+    ``CF Pig 2025-05-19 Goldilocks MH.JPG`` where ``MH`` is a station
+    on their property. Without this table the ingest pipeline has no
+    way to know whether ``MH`` is a water-tank, feeder, trail, etc.,
+    which matters because ``bias/placement_ipw.py`` deflates per-
+    camera detection rates by context.
+
+    The station code is scoped to the property because the same short
+    code (``CW``) may mean "creek crossing" on one ranch and
+    "corn-pile west" on another.
+    """
+    __tablename__ = "camera_stations"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "property_id", "station_code",
+            name="uq_camera_station_property_code",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"), nullable=False, index=True
+    )
+    # Short alpha code as it appears in filenames. Stored upper-case.
+    station_code = db.Column(db.String(8), nullable=False)
+    # One of config.settings.PLACEMENT_CONTEXTS.
+    placement_context = db.Column(db.String(30), nullable=False)
+    # Optional human label, e.g. "Moore House water tank".
+    label = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    def __repr__(self):
+        return f"<CameraStation {self.station_code} ({self.placement_context})>"
+
+
+# ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
 

@@ -232,6 +232,7 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         from web.routes.results import results_bp
         from web.routes.properties import properties_bp
         from web.routes.api.properties import properties_api_bp
+        from web.routes.api.camera_stations import camera_stations_api_bp
         from web.routes.api.uploads import uploads_api_bp
         from web.routes.api.dashboard import dashboard_api_bp
         from web.routes.api.share import share_api_bp
@@ -256,6 +257,7 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         app.register_blueprint(results_bp)
         app.register_blueprint(properties_bp)
         app.register_blueprint(properties_api_bp)
+        app.register_blueprint(camera_stations_api_bp)
         app.register_blueprint(uploads_api_bp)
         app.register_blueprint(dashboard_api_bp)
         app.register_blueprint(share_api_bp)
@@ -266,7 +268,8 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         app.register_blueprint(_ut_bp)
 
         # Exempt JSON API endpoints from CSRF (they use auth tokens, not cookies)
-        for bp in (properties_api_bp, uploads_api_bp, dashboard_api_bp,
+        for bp in (properties_api_bp, camera_stations_api_bp,
+                   uploads_api_bp, dashboard_api_bp,
                    share_api_bp, reid_api_bp, _pu_bp, _pp_bp,
                    _tu_bp, _ut_bp):
             csrf.exempt(bp)
@@ -283,6 +286,7 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         from web.routes.api.token_uploads import (
             token_uploads_bp, upload_tokens_bp,
         )
+        from web.routes.api.camera_stations import camera_stations_api_bp
 
         app.register_blueprint(demo_bp)
         app.register_blueprint(owner_bp)
@@ -294,6 +298,8 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         # Tokenized upload flow
         app.register_blueprint(token_uploads_bp)
         app.register_blueprint(upload_tokens_bp)
+        # Per-property station-code -> placement_context mapping
+        app.register_blueprint(camera_stations_api_bp)
 
         # Exempt JSON API endpoints from CSRF (auth via session/token, not cookie)
         csrf.exempt(owner_api_bp)
@@ -301,6 +307,7 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         csrf.exempt(property_uploads_bp)
         csrf.exempt(token_uploads_bp)
         csrf.exempt(upload_tokens_bp)
+        csrf.exempt(camera_stations_api_bp)
         # Lender routes are server-rendered HTML with CSRF on forms only;
         # the JSON exposure endpoint under /lender/api/ is read-only GET.
 

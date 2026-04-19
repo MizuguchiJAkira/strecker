@@ -49,6 +49,67 @@ _SPECIES_MAP = {
 }
 
 
+# Short alpha codes that MUST NOT be treated as station codes because they
+# collide with the hunter-species lexicon. Derived from _SPECIES_MAP keys
+# (upper-cased and truncated to the 2–3-letter shape we accept).
+_STATION_CODE_DENY = {k.upper() for k in _SPECIES_MAP.keys()} | {
+    # Common hunter abbreviations / initialism prefixes in filenames.
+    "CF",   # "camera file" / "cured film"
+    "IMG",  # device default
+    "DSC",  # device default
+    "MFDC", # Moultrie default prefix
+    "JPG", "PNG",
+}
+
+
+_STATION_CODE_RE = re.compile(
+    r'(?:[\s_\-\(])([A-Za-z]{2,3})\.(?:JPG|JPEG|PNG)$',
+    re.IGNORECASE,
+)
+
+
+def extract_station_code(filename: str) -> Optional[str]:
+    """Return the hunter-assigned camera-station code embedded in a
+    filename, or ``None`` if no code is present.
+
+    The station code is a 2–3-letter alpha-only token that appears
+    immediately before the extension, separated from the rest of the
+    filename by whitespace, underscore, dash, or an opening paren.
+    Returned upper-cased so lookups are case-insensitive.
+
+    Codes that collide with the species lexicon (``PIG``, ``HOG``,
+    ``DEER``, ``BUCK``, ``DOE``, ``FAWN``, ``ELK``, ``FOX`` etc.) are
+    rejected — those are species words the hunter is using, not station
+    codes. Likewise, common device-default prefixes (``IMG``, ``DSC``,
+    ``MFDC``, ``CF``) never count as station codes.
+
+    >>> extract_station_code("CF Pig 2025-05-19 Goldilocks MH.JPG")
+    'MH'
+    >>> extract_station_code("CF Deer 2025-10-20 TS 6.JPG") is None
+    True
+    >>> extract_station_code("CF Deer 2025-10-20 TS.JPG")
+    'TS'
+    >>> extract_station_code("CF Bear 2025-08-28 BS.JPG")
+    'BS'
+    >>> extract_station_code("MFDC1727.JPG") is None
+    True
+    >>> extract_station_code("CF Pig 2025-05-19.JPG") is None
+    True
+    >>> extract_station_code("random.jpg") is None
+    True
+    """
+    if not filename:
+        return None
+    base = os.path.basename(filename)
+    m = _STATION_CODE_RE.search(base)
+    if not m:
+        return None
+    code = m.group(1).upper()
+    if code in _STATION_CODE_DENY:
+        return None
+    return code
+
+
 def extract_ground_truth(filename: str) -> Optional[str]:
     """Return the Basal species_key inferred from a filename, or None.
 

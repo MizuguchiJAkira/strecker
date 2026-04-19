@@ -6,7 +6,7 @@ per-species confusion accounting.
 """
 
 from strecker.filename_labels import (
-    build_accuracy_report, extract_ground_truth,
+    build_accuracy_report, extract_ground_truth, extract_station_code,
 )
 
 
@@ -129,3 +129,55 @@ def test_unknown_classifier_treated_as_missed():
     ])
     assert r["n_missed"] == 2
     assert r["n_matched"] == 0
+
+
+# ---------------------------------------------------------------------------
+# extract_station_code
+# ---------------------------------------------------------------------------
+
+def test_extract_station_code_typical_hunter_filenames():
+    cases = [
+        ("CF Pig 2025-05-19 Goldilocks MH.JPG", "MH"),
+        ("CF Bear 2025-08-28 BS.JPG",            "BS"),
+        ("CF Turkey 2025-06-28 Tan BS.JPG",      "BS"),
+        ("CF Hog 2024-07-12 CW.JPG",             "CW"),
+        ("CF Pig 2024-09-01 FS.JPG",             "FS"),
+        ("CF Deer 2025-10-20 TS.JPG",            "TS"),
+    ]
+    for fname, expected in cases:
+        assert extract_station_code(fname) == expected, fname
+
+
+def test_extract_station_code_rejects_species_words():
+    """A trailing species word must never be treated as a station code."""
+    for fname in [
+        "CF Pig 2025-05-19.JPG",
+        "CF Deer 2025-10-20.JPG",
+        "CF Elk 2025-05-22.JPG",
+        "CF Fox 2024-04-01.JPG",
+        "CF Doe 2024-06-03.JPG",
+    ]:
+        assert extract_station_code(fname) is None, fname
+
+
+def test_extract_station_code_rejects_device_defaults():
+    assert extract_station_code("MFDC1727.JPG") is None
+    assert extract_station_code("IMG_0042.JPG") is None
+    assert extract_station_code("random.jpg") is None
+
+
+def test_extract_station_code_requires_separator_before_code():
+    """``TS`` in ``TS 6.JPG`` shouldn't match because there's a number
+    after it — the code must be the final token before the extension."""
+    assert extract_station_code("CF Deer 2025-10-20 TS 6.JPG") is None
+
+
+def test_extract_station_code_is_case_insensitive_and_returns_upper():
+    assert extract_station_code("CF Pig 2025 mh.jpg") == "MH"
+    assert extract_station_code("CF Pig 2025 Bs.JPG") == "BS"
+
+
+def test_extract_station_code_accepts_path_and_empty():
+    assert extract_station_code("subdir/CF Pig 2025 MH.JPG") == "MH"
+    assert extract_station_code("") is None
+    assert extract_station_code(None) is None  # type: ignore[arg-type]
