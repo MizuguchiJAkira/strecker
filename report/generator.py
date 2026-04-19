@@ -106,49 +106,55 @@ def generate_report(
         canvas.restoreState()
 
     def _content_page(canvas, doc):
-        """Content pages — bone paper, mono masthead on hairline.
+        """Content pages — institutional running header/footer.
 
-        Editorial chrome: a thin ink rule top and bottom, mono
-        masthead and folio so the page reads like a design journal,
-        not a bank slide deck.
+        Typography matches Goldman Sachs / McKinsey research reports:
+          - Fraunces italic 8.5pt for running masthead and confidential
+            stamp (sentence case, not all-caps mono)
+          - Inter regular 9pt for the page number
+          - Thin ink rules above the header and below the footer
+        No mono in the page chrome — mono is reserved for tabular data
+        and data captions inside the content frame.
         """
         canvas.saveState()
 
-        # Paint page background bone (warm paper).
+        # Paint page background.
         canvas.setFillColor(PAGE_BG)
         canvas.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
 
         # Header hairline
         y_top = PAGE_HEIGHT - 0.55 * inch
         canvas.setStrokeColor(BRAND_NAVY)  # = INK in the new palette
-        canvas.setLineWidth(0.6)
+        canvas.setLineWidth(0.5)
         canvas.line(MARGIN_LEFT, y_top,
                     PAGE_WIDTH - MARGIN_RIGHT, y_top)
 
-        # Header masthead — mono uppercase, left "BASAL INFORMATICS",
-        # right "NATURE EXPOSURE REPORT · <parcel_id>"
-        canvas.setFont(FONTS["mono_regular"], 7.5)
-        canvas.setFillColor(BRAND_NAVY)
+        # Header: "Basal Informatics" left in Fraunces italic; parcel
+        # reference right in Fraunces italic. Sentence case, no bullets.
         parcel_id = assessment.get("parcel_id", "")
-        canvas.drawString(MARGIN_LEFT, y_top + 4,
-                          "BASAL INFORMATICS")
-        canvas.drawRightString(PAGE_WIDTH - MARGIN_RIGHT, y_top + 4,
-                               f"NATURE EXPOSURE · {parcel_id}".upper())
+        canvas.setFont(FONTS["serif_italic"], 8.5)
+        canvas.setFillColor(TEXT_SECONDARY)
+        canvas.drawString(MARGIN_LEFT, y_top + 5,
+                          "Basal Informatics")
+        canvas.drawRightString(PAGE_WIDTH - MARGIN_RIGHT, y_top + 5,
+                               f"Nature Exposure Report — {parcel_id}")
 
         # Footer hairline
         y_bot = 0.55 * inch
         canvas.setStrokeColor(BRAND_NAVY)
-        canvas.setLineWidth(0.6)
+        canvas.setLineWidth(0.5)
         canvas.line(MARGIN_LEFT, y_bot,
                     PAGE_WIDTH - MARGIN_RIGHT, y_bot)
-        canvas.setFont(FONTS["mono_regular"], 7.5)
+
+        # Footer: italic "Confidential" left, plain page number right.
+        canvas.setFont(FONTS["serif_italic"], 8)
         canvas.setFillColor(TEXT_SECONDARY)
         canvas.drawString(MARGIN_LEFT, y_bot - 12,
-                          "CONFIDENTIAL — AUTHORIZED RECIPIENTS ONLY")
+                          "Confidential — for authorized recipients")
+        canvas.setFont(FONTS["sans_regular"], 9)
         canvas.setFillColor(BRAND_NAVY)
-        # Page number as "02." — serialised folio
         canvas.drawRightString(PAGE_WIDTH - MARGIN_RIGHT, y_bot - 12,
-                               f"{doc.page:02d}.")
+                               f"{doc.page}")
 
         canvas.restoreState()
 

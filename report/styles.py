@@ -427,39 +427,39 @@ def grade_color(grade: str) -> str:
 
 
 def section_bar(title: str, width: float):
-    """Editorial section header — numbered eyebrow on hairline rule.
+    """Institutional section header — title over hairline rule.
 
-    Rendered as a two-row table:
-      row 1: a thin ink hairline (the rule)
-      row 2: "NN · SECTION TITLE" in mono uppercase, ink on bone
+    Two rows:
+      row 1: Fraunces display title, sentence case (e.g. "Executive
+             Summary"), left-aligned
+      row 2: thin ink rule across the full content width
 
-    Returns a flowable that can be dropped where the old navy bar
-    was placed. The caller passes a title string like
-    "02 · EXECUTIVE SUMMARY"; if it lacks a numeric prefix we wrap it
-    verbatim.
+    Deliberately restrained. No uppercase mono eyebrow, no numeric
+    prefix, no colored bar — the title itself carries the hierarchy.
+    This is the idiom used by Goldman Sachs research and McKinsey
+    Global Institute reports, where the running chrome stays quiet
+    and the display type does the work.
     """
-    from reportlab.platypus import Paragraph, Table, TableStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
-    upper = title.upper()
     style = ParagraphStyle(
-        "SectionEyebrow",
-        fontName=MONO_REGULAR, fontSize=9, leading=12,
+        "SectionTitle",
+        fontName=SERIF_DISPLAY, fontSize=22, leading=26,
         textColor=INK, alignment=TA_LEFT,
     )
-    p = Paragraph(upper, style)
+    p = Paragraph(title, style)
     t = Table(
-        [[""], [p]],
+        [[p], [""]],
         colWidths=[width],
-        rowHeights=[0.02 * inch, 0.28 * inch],
+        rowHeights=[0.4 * inch, 0.02 * inch],
     )
     t.setStyle(TableStyle([
-        ("LINEABOVE",     (0, 0), (-1, 0), 0.8, INK),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("LINEBELOW",     (0, 1), (-1, 1), 0.6, INK),
+        ("VALIGN",        (0, 0), (-1, -1), "BOTTOM"),
         ("LEFTPADDING",   (0, 0), (-1, -1), 0),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
         ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 0),
-        ("BOTTOMPADDING", (0, 1), (-1, 1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
     return t
 
