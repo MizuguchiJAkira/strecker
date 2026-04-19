@@ -113,48 +113,120 @@
         if (e.dataTransfer.files[0]) startUpload(e.dataTransfer.files[0]);
     });
 
-    function startUpload(file) {
+    async function startUpload(file) {
         document.getElementById('upload-zone').classList.add('hidden');
         document.getElementById('progress-area').classList.remove('hidden');
 
-        const formData = new FormData();
-        formData.append('file', file);
+        const base = '/api/properties/' + PROPERTY_ID + '/uploads';
 
-        fetch('/api/properties/' + PROPERTY_ID + '/uploads', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.id) {
-                pollStatus(data.id);
-            } else {
-                showError(data.error || 'Upload failed');
+        try {
+            // Phase 1 — ask the server for a pre-signed PUT URL.
+            setStatus('Requesting upload URL…', 'Verifying your parcel access');
+            setProgress(5);
+            const r1 = await fetch(base + '/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    filename: file.name, size_bytes: file.size,
+                }),
+            });
+            if (!r1.ok) {
+                const e = await r1.json().catch(() => ({}));
+                throw new Error(e.error || ('request failed ' + r1.status));
             }
-        })
-        .catch(() => showError('Network error'));
+            const reqResp = await r1.json();
+
+            // Phase 2 — PUT the bytes directly to Spaces. Browser talks
+            // to Spaces; web container never sees the bytes.
+            setStatus('Uploading…', '0% complete');
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', (ev) => {
+                    if (!ev.lengthComputable) return;
+                    const pct = Math.round((ev.loaded / ev.total) * 100);
+                    setProgress(5 + pct * 0.55);  // 5–60% of bar = PUT
+                    setStatus('Uploading…', pct + '% complete');
+                });
+                xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+                    ? resolve()
+                    : reject(new Error('Spaces PUT failed ' + xhr.status));
+                xhr.onerror = () => reject(new Error('network error during PUT'));
+                xhr.open('PUT', reqResp.upload_url);
+                (reqResp.headers || {})['Content-Type'] &&
+                    xhr.setRequestHeader('Content-Type', reqResp.headers['Content-Type']);
+                xhr.send(file);
+            });
+
+            // Phase 3 — confirm: server HEADs Spaces, enqueues the job.
+            setStatus('Queueing pipeline…', 'Verifying upload landed in storage');
+            setProgress(65);
+            const r3 = await fetch(
+                base + '/' + reqResp.upload_id + '/confirm',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        key: reqResp.key,
+                        job_id_reservation: reqResp.job_id_reservation,
+                    }),
+                });
+            if (!r3.ok) {
+                const e = await r3.json().catch(() => ({}));
+                throw new Error(e.error || ('confirm failed ' + r3.status));
+            }
+            const confirmResp = await r3.json();
+            pollStatus(reqResp.upload_id);
+        } catch (err) {
+            showError(err.message || 'Upload failed');
+        }
+    }
+
+    function setStatus(headline, detail) {
+        document.getElementById('status-text').textContent = headline;
+        if (detail !== undefined)
+            document.getElementById('status-detail').textContent = detail;
+    }
+
+    function setProgress(pct) {
+        document.getElementById('progress-bar').style.width =
+            Math.max(0, Math.min(100, pct)) + '%';
     }
 
     function pollStatus(uploadId) {
+        const base = '/api/properties/' + PROPERTY_ID + '/uploads/' + uploadId;
         const interval = setInterval(() => {
-            fetch('/api/uploads/' + uploadId + '/status')
+            fetch(base + '/status', { credentials: 'include' })
             .then(r => r.json())
             .then(data => {
-                if (data.status === 'processing') {
-                    document.getElementById('progress-bar').style.width = '50%';
-                    document.getElementById('status-detail').textContent = 'Classifying species and grouping events...';
-                } else if (data.status === 'complete') {
+                // Worker-side phases map to bar 70–95%.
+                const phaseBar = {
+                    'queued': 70,
+                    'processing': 78,
+                    'classifying': 86,
+                    'reporting': 94,
+                }[data.status];
+                if (phaseBar) setProgress(phaseBar);
+
+                const phaseDetail = {
+                    'queued':      'Waiting for worker',
+                    'processing':  'Extracting and detecting animals',
+                    'classifying': 'Classifying species and grouping events',
+                    'reporting':   'Generating inventory report',
+                }[data.status];
+                if (phaseDetail) setStatus('Processing photos…', phaseDetail);
+
+                if (data.status === 'complete') {
                     clearInterval(interval);
-                    document.getElementById('progress-bar').style.width = '100%';
-                    document.getElementById('status-text').textContent = 'Processing complete!';
-                    document.getElementById('status-detail').textContent =
-                        (data.photo_count || 0) + ' photos processed';
+                    setProgress(100);
+                    setStatus('Processing complete',
+                        (data.photo_count || 0) + ' photos processed');
                     document.getElementById('status-icon').innerHTML =
                         '<svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
-
-                    // Redirect to dashboard after brief pause
                     setTimeout(() => {
-                        window.location.href = '/properties/' + PROPERTY_ID + '/dashboard?season=' + (data.season_id || '');
+                        window.location.href = '/properties/' +
+                            PROPERTY_ID + '/dashboard';
                     }, 1500);
                 } else if (data.status === 'error') {
                     clearInterval(interval);

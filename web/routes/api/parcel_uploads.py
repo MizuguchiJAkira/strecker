@@ -50,6 +50,15 @@ parcel_uploads_bp = Blueprint(
     "parcel_uploads_api", __name__, url_prefix="/api/parcels"
 )
 
+# Hunter-facing alias — identical handlers, property-scoped URLs.
+# The Strecker site's "Upload Photos" button routes to
+# /properties/<id>/upload which expects `/api/properties/<id>/uploads/...`
+# as the upload endpoints. Rather than duplicating the three handlers we
+# attach them to a second blueprint with the same view functions.
+property_uploads_bp = Blueprint(
+    "property_uploads_api", __name__, url_prefix="/api/properties"
+)
+
 # Keep parity with the Strecker /upload flow's cap.
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024   # 500 MB
 MIN_UPLOAD_BYTES = 100                  # obvious-junk floor
@@ -79,6 +88,7 @@ def _is_safe_filename(name: str) -> bool:
 
 
 @parcel_uploads_bp.route("/<int:parcel_id>/uploads/request", methods=["POST"])
+@property_uploads_bp.route("/<int:parcel_id>/uploads/request", methods=["POST"])
 @login_required
 def request_upload(parcel_id):
     """Phase 1: issue a pre-signed PUT URL for a new upload.
@@ -138,6 +148,9 @@ def request_upload(parcel_id):
 
 
 @parcel_uploads_bp.route(
+    "/<int:parcel_id>/uploads/<int:upload_id>/confirm", methods=["POST"]
+)
+@property_uploads_bp.route(
     "/<int:parcel_id>/uploads/<int:upload_id>/confirm", methods=["POST"]
 )
 @login_required
@@ -208,6 +221,9 @@ def confirm_upload(parcel_id, upload_id):
 
 
 @parcel_uploads_bp.route(
+    "/<int:parcel_id>/uploads/<int:upload_id>/status", methods=["GET"]
+)
+@property_uploads_bp.route(
     "/<int:parcel_id>/uploads/<int:upload_id>/status", methods=["GET"]
 )
 @login_required

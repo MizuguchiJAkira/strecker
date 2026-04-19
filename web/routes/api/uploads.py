@@ -48,93 +48,36 @@ def _new_job_id() -> str:
 @uploads_api_bp.route("/properties/<int:property_id>/uploads", methods=["POST"])
 @login_required
 def create_upload(property_id):
-    """Accept a ZIP, push to Spaces, create Upload + ProcessingJob rows.
+    """DEPRECATED — replaced by the pre-signed PUT flow.
 
-    The worker (strecker.worker) picks it up by polling processing_jobs.
+    The old streaming POST held the HTTP request open while boto3 wrote
+    the ZIP through the web container. That had hung gunicorn workers
+    for minutes on a misconfigured Space, so it was replaced with the
+    three-step flow:
+
+      POST /api/properties/<pid>/uploads/request         -> presigned PUT URL
+      PUT  <spaces-url>                                   -> bytes go direct
+      POST /api/properties/<pid>/uploads/<uid>/confirm   -> enqueue job
+
+    All three handlers live in web/routes/api/parcel_uploads.py and are
+    exposed under both /api/parcels and /api/properties.
+
+    This route now returns 410 Gone with a pointer to the new flow so
+    any stale UI hitting the old endpoint fails loudly instead of
+    hanging.
     """
-    prop = _get_user_property(property_id)
-    if not prop:
-        return jsonify({"error": "Property not found"}), 404
-
-    uploaded_file = request.files.get("file") or request.files.get("photos")
-    if not uploaded_file or not uploaded_file.filename:
-        return jsonify({"error": "No file uploaded"}), 400
-    if not uploaded_file.filename.lower().endswith(".zip"):
-        return jsonify({"error": "Please upload a ZIP file"}), 400
-
-    # Stream to /tmp so we never rely on the container's writable volume.
-    tmpdir = tempfile.mkdtemp(prefix=f"prop_upload_{prop.id}_")
-    local_zip = os.path.join(tmpdir, "upload.zip")
-    try:
-        uploaded_file.save(local_zip)
-
-        file_size = os.path.getsize(local_zip)
-        if file_size > MAX_UPLOAD_BYTES:
-            return jsonify({
-                "error": f"File too large ({file_size // (1024*1024)} MB). "
-                         f"Max {MAX_UPLOAD_BYTES // (1024*1024)} MB."
-            }), 413
-
-        # Validate ZIP + confirm it contains at least one image.
-        try:
-            with zipfile.ZipFile(local_zip) as zf:
-                if zf.testzip() is not None:
-                    return jsonify({"error": "ZIP file is corrupt"}), 400
-                has_image = any(
-                    n.lower().endswith(_IMG_EXTS) for n in zf.namelist()
-                )
-                if not has_image:
-                    return jsonify({"error": "ZIP contains no images"}), 400
-        except zipfile.BadZipFile as e:
-            return jsonify({"error": f"Invalid ZIP: {e}"}), 400
-
-        # Create Upload row first so we have its id for the job.
-        upload = Upload(
-            property_id=prop.id,
-            user_id=current_user.id,
-            status="queued",
-            photo_count=None,
-        )
-        db.session.add(upload)
-        db.session.commit()
-
-        # Push to object storage under a unique job key.
-        job_id = _new_job_id()
-        zip_key = storage.upload_zip_key(job_id)
-        storage.put_file(local_zip, zip_key, content_type="application/zip")
-
-        pj = ProcessingJob(
-            job_id=job_id,
-            property_id=prop.id,
-            upload_id=upload.id,
-            property_name=prop.name,
-            state=prop.state or "TX",
-            status="queued",
-            zip_key=zip_key,
-            demo=False,
-        )
-        db.session.add(pj)
-        db.session.commit()
-
-        logger.info(
-            "Property %d upload %d queued: %d KB -> %s (job %s)",
-            prop.id, upload.id, file_size // 1024, zip_key, job_id,
-        )
-
-        return jsonify({
-            "id": upload.id,
-            "job_id": job_id,
-            "status": "queued",
-            "property_id": prop.id,
-        }), 201
-
-    finally:
-        try:
-            if os.path.exists(local_zip):
-                os.unlink(local_zip)
-            os.rmdir(tmpdir)
-        except Exception:
-            pass
+    return jsonify({
+        "error": "This endpoint is deprecated; use /api/properties/"
+                 "<pid>/uploads/request + /confirm. See "
+                 "docs/UPLOAD_FLOW.md.",
+        "replacement": {
+            "request": f"/api/properties/{property_id}/uploads/request",
+            "confirm": (f"/api/properties/{property_id}/uploads/"
+                        "<upload_id>/confirm"),
+            "status":  (f"/api/properties/{property_id}/uploads/"
+                        "<upload_id>/status"),
+        },
+    }), 410
 
 
 @uploads_api_bp.route("/uploads/<int:upload_id>/status", methods=["GET"])
