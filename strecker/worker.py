@@ -177,17 +177,24 @@ def _is_real_species_key(key):
 
 
 def _aggregate_to_property(db, pj, detections):
-    """Per-property aggregation: auto-create Cameras, derive Seasons from
-    photo timestamps, upsert DetectionSummary rows.
+    """Per-property aggregation: auto-create Cameras, slice detections
+    across Season windows, upsert DetectionSummary rows.
 
     Cameras: top-level folder of the ZIP → camera_label (via det.camera_id
     which strecker.ingest already derives).
-    Seasons: one quarterly season per (property, year-quarter) of detections.
+    Seasons: each detection is routed to the existing Season whose
+    ``[start_date, end_date]`` covers its timestamp; when no Season
+    matches, a calendar-year season ``"Auto-detected YYYY deployment"``
+    is auto-created. This is what lets a single SD-card ZIP that spans
+    multiple years produce one DetectionSummary per (year, camera, species)
+    instead of collapsing into whichever Season happened to be active.
+    See ``strecker.seasons.resolve_seasons_for_detections``.
     DetectionSummary: (season_id, camera_id, species_key) is unique; sum.
     Filters out SpeciesNet's "blank" / "no_cv_result" internal classes.
     """
     import json as _json
     from db.models import Camera, Season, Upload, DetectionSummary
+    from strecker.seasons import group_detections_by_season
 
     # Strip SpeciesNet "blank"/"no_cv_result" detections before anything
     # else; they'd otherwise create phantom DetectionSummary rows that
@@ -215,29 +222,17 @@ def _aggregate_to_property(db, pj, detections):
             existing_cams[label] = cam
     db.session.flush()  # populate cam.id
 
-    # 2. Auto-create seasons keyed on (year, quarter)
-    # Bucket detections by quarter
-    by_quarter = defaultdict(list)
-    for d in detections:
-        q_key = (d.timestamp.year, (d.timestamp.month - 1) // 3)
-        by_quarter[q_key].append(d)
-
-    seasons = {}  # q_key -> Season
-    for q_key, dets in by_quarter.items():
-        _q, start, end, label = _quarter_for(dets[0].timestamp)
-        season = (Season.query
-                  .filter_by(property_id=pj.property_id, name=label)
-                  .first())
-        if not season:
-            season = Season(
-                property_id=pj.property_id,
-                name=label,
-                start_date=start,
-                end_date=end,
-            )
-            db.session.add(season)
-            db.session.flush()
-        seasons[q_key] = season
+    # 2. Partition detections across Season windows, auto-creating a
+    # calendar-year Season for any detection whose timestamp falls
+    # outside every existing Season for this property. Single-season
+    # uploads (the common case) still return a one-entry list, so we
+    # don't pay per-season overhead for them.
+    season_groups = group_detections_by_season(
+        db, Season, pj.property_id, detections)
+    # Maintain the legacy ``seasons`` + ``by_quarter`` shapes downstream
+    # needs (primary-season-for-Upload pick, log message count).
+    seasons = {s.id: s for s, _ in season_groups}
+    by_season_dets = {s.id: dets for s, dets in season_groups}
 
     # 3. Aggregate into per-(season, camera, species) buckets
     agg = defaultdict(lambda: {
@@ -250,14 +245,22 @@ def _aggregate_to_property(db, pj, detections):
         "doe": 0,
         "hourly": [0] * 24,
     })
+    # Build a detection → season map once (id() keyed — detection objects
+    # are plain dataclasses, no __hash__ collisions to worry about across
+    # a single batch).
+    det_to_season = {}
+    for season, dets in season_groups:
+        for d in dets:
+            det_to_season[id(d)] = season
     for d in detections:
         if not d.camera_id:
             continue
         cam = existing_cams.get(d.camera_id)
         if not cam:
             continue
-        q_key = (d.timestamp.year, (d.timestamp.month - 1) // 3)
-        season = seasons[q_key]
+        season = det_to_season.get(id(d))
+        if season is None:
+            continue  # detection had no timestamp; skip
         key = (season.id, cam.id, d.species_key)
         a = agg[key]
         a["photos"] += 1
@@ -325,9 +328,10 @@ def _aggregate_to_property(db, pj, detections):
             up.photo_count = len(detections)
             up.processed_at = datetime.utcnow()
             # Link to the season with the most detections (primary season)
-            if seasons:
-                primary_q = max(by_quarter.items(), key=lambda kv: len(kv[1]))[0]
-                up.season_id = seasons[primary_q].id
+            if by_season_dets:
+                primary_sid = max(
+                    by_season_dets.items(), key=lambda kv: len(kv[1]))[0]
+                up.season_id = primary_sid
 
     db.session.commit()
     logger.info("Job %s aggregated to property %s: %d cameras, %d seasons, %d summaries",
