@@ -11,9 +11,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/basal.css') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='marketing/basal-mark.svg') }}">
     {% else %}
-    {# Strecker — hunter-facing "field HUD" stack. Different fonts,
-       different palette, different visual grammar from Basal. #}
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Share+Tech+Mono&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    {# Strecker — a naturalist's field-journal aesthetic. Single
+       literary serif, cream paper, small caps for metadata. Nothing
+       is inherited from Basal or from prior Strecker iterations. #}
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/strecker.css') }}">
     {% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
@@ -155,40 +156,6 @@
             </div>
         </div>
     </header>
-
-    {# Strecker-only: live detection ticker under the nav. Loops a
-       set of recent-style trigger events across the screen, reads
-       as a field-sensor feed. Pure CSS animation, zero JS cost. #}
-    {% if not is_basal_site %}
-    <div class="s-ticker">
-      <div class="s-ticker-label">◉ LIVE FEED</div>
-      <div class="s-ticker-track">
-        <div class="s-ticker-run">
-          <span><b>WHITETAIL</b> · CAM-CW-02 · FEEDER · 04:17</span>
-          <span><b>FERAL HOG</b> · CAM-MH-01 · TRAIL · 01:38</span>
-          <span><b>COYOTE</b> · CAM-BS-03 · RANDOM · 23:04</span>
-          <span><b>BLACK BEAR</b> · CAM-CW-04 · RIDGE · 22:51</span>
-          <span><b>WILD TURKEY</b> · CAM-CW-01 · FOOD PLOT · 07:42</span>
-          <span><b>AXIS DEER</b> · CAM-SS-02 · WATER · 19:08</span>
-          <span><b>WHITETAIL</b> · CAM-CW-05 · WATER · 03:25</span>
-          <span><b>RACCOON</b> · CAM-FS-04 · FEEDER · 02:14</span>
-          <span><b>BOBCAT</b> · CAM-TS-01 · TRAIL · 05:47</span>
-          <span><b>GRAY FOX</b> · CAM-WTH · RIDGE · 00:52</span>
-          <span><b>WHITETAIL</b> · CAM-CW-02 · FEEDER · 04:17</span>
-          <span><b>FERAL HOG</b> · CAM-MH-01 · TRAIL · 01:38</span>
-          <span><b>COYOTE</b> · CAM-BS-03 · RANDOM · 23:04</span>
-          <span><b>BLACK BEAR</b> · CAM-CW-04 · RIDGE · 22:51</span>
-          <span><b>WILD TURKEY</b> · CAM-CW-01 · FOOD PLOT · 07:42</span>
-          <span><b>AXIS DEER</b> · CAM-SS-02 · WATER · 19:08</span>
-          <span><b>WHITETAIL</b> · CAM-CW-05 · WATER · 03:25</span>
-          <span><b>RACCOON</b> · CAM-FS-04 · FEEDER · 02:14</span>
-          <span><b>BOBCAT</b> · CAM-TS-01 · TRAIL · 05:47</span>
-          <span><b>GRAY FOX</b> · CAM-WTH · RIDGE · 00:52</span>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
     {% endif %}
 
     <!-- Content -->

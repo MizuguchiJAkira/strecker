@@ -1,522 +1,382 @@
 {% extends "base.html" %}
-{% block title %}Strecker — Trail Cam Intelligence{% endblock %}
+{% block title %}Strecker — a field journal for your land{% endblock %}
 
 {% block content %}
 <style>
-    .feature-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    /* Page-local tuning for the landing. All tokens come from
+       strecker.css; this just controls the layout of this page. */
+    .j-page { max-width: 880px; margin: 0 auto; padding: 0 32px; }
+
+    .j-masthead {
+      padding: 72px 0 36px;
+      border-bottom: 1px solid var(--j-rule-ink);
+      margin-bottom: 48px;
+      position: relative;
     }
-    .feature-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    .j-masthead-eyebrow {
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.22em;
+      font-size: 13px;
+      color: var(--j-ink-mute);
+      margin-bottom: 28px;
+    }
+    .j-masthead h1 {
+      font-size: clamp(52px, 7vw, 88px);
+      font-style: italic;
+      font-weight: 400;
+      line-height: 0.98;
+      letter-spacing: -0.02em;
+      margin: 0 0 18px;
+      color: var(--j-ink);
+    }
+    .j-masthead .lede {
+      font-size: 20px;
+      line-height: 1.5;
+      font-style: italic;
+      color: var(--j-ink-soft);
+      max-width: 42em;
+      margin: 0;
     }
 
-    /* ── Trail cam hero ── */
-    .hero-video {
-        position: relative;
-        margin: -2rem -1.5rem 0;
-        height: 92vh;
-        min-height: 520px;
-        max-height: 840px;
-        overflow: hidden;
-        background: #060a06;
+    /* Decorative folio number, top right, like a book page */
+    .j-folio {
+      position: absolute;
+      top: 72px;
+      right: 0;
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.2em;
+      font-size: 12px;
+      color: var(--j-ink-mute);
+      text-align: right;
+      line-height: 1.5;
     }
-    .hero-video video {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center 60%;
-        filter: brightness(0.5);
-    }
-    /* Live trail-cam reel. Six real TNDeer photos (buck, hog, bear,
-       coyote, turkey, 8-pt) crossfade in a 6-frame loop. Each frame
-       carries its own camera-station + timestamp HUD overlay, so the
-       hero reads like a live network of six cameras posting trigger
-       events rather than a stock video. */
-    .hero-reel { position: absolute; inset: 0; overflow: hidden; }
-    .hero-reel .frame {
-        position: absolute; inset: 0;
-        opacity: 0;
-        animation: strecker-reel 36s infinite;
-        animation-fill-mode: both;
-    }
-    .hero-reel .frame img {
-        position: absolute; inset: 0;
-        width: 100%; height: 100%;
-        object-fit: cover; object-position: center 55%;
-        filter: brightness(0.6) contrast(1.08) saturate(0.85);
-        animation: strecker-kenburns 14s ease-in-out infinite alternate;
-        transform-origin: 52% 58%;
-    }
-    .hero-reel .frame:nth-child(1) { animation-delay:  0s; }
-    .hero-reel .frame:nth-child(2) { animation-delay:  6s; }
-    .hero-reel .frame:nth-child(3) { animation-delay: 12s; }
-    .hero-reel .frame:nth-child(4) { animation-delay: 18s; }
-    .hero-reel .frame:nth-child(5) { animation-delay: 24s; }
-    .hero-reel .frame:nth-child(6) { animation-delay: 30s; }
+    .j-folio .num { display: block; font-size: 36px; color: var(--j-loam); font-style: italic; letter-spacing: 0; margin-bottom: -4px; }
 
-    @keyframes strecker-reel {
-        0%,1%    { opacity: 0; transform: scale(1.02); }
-        3%,15%   { opacity: 1; transform: scale(1.00); }
-        17%,100% { opacity: 0; transform: scale(1.00); }
-    }
-    @keyframes strecker-kenburns {
-        0%   { transform: scale(1.00); }
-        100% { transform: scale(1.09); }
+    .j-section { margin: 56px 0; }
+    .j-section-title {
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.22em;
+      font-size: 14px;
+      color: var(--j-loam);
+      border-bottom: 1px solid var(--j-rule-ink);
+      padding-bottom: 6px;
+      margin-bottom: 28px;
     }
 
-    /* Per-frame HUD tag — visible only while its frame is active */
-    .hero-reel .frame-hud {
-        position: absolute;
-        left: 22px; bottom: 22px;
-        z-index: 6;
-        font-family: 'Share Tech Mono', monospace;
-        font-size: 12px;
-        letter-spacing: 1.5px;
-        color: rgba(118,200,138,0.92);
-        text-shadow: 0 0 10px rgba(40,120,60,0.5);
-        background: rgba(13,20,16,0.55);
-        border: 1px solid rgba(118,200,138,0.4);
-        padding: 6px 10px;
-        border-radius: 2px;
+    /* Log entries — chronological, literary, journal-style */
+    .j-log { }
+    .j-entry {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 36px;
+      padding: 28px 0;
+      border-top: 1px solid var(--j-rule);
     }
-    .hero-reel .frame-hud .sp {
-        color: #e0652a;
-        font-weight: 700;
-        margin-right: 8px;
-        text-transform: uppercase;
+    .j-entry:first-child { border-top: none; padding-top: 0; }
+    .j-entry-date {
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.18em;
+      font-size: 13px;
+      color: var(--j-ink-mute);
+      padding-top: 4px;
+    }
+    .j-entry-date .day {
+      font-variant-caps: normal;
+      letter-spacing: 0;
+      font-size: 34px;
+      font-style: italic;
+      color: var(--j-ink);
+      line-height: 1;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .j-entry-body h3 {
+      font-style: italic;
+      font-weight: 400;
+      font-size: 22px;
+      margin: 0 0 8px;
+      color: var(--j-ink);
+    }
+    .j-entry-body p { margin: 8px 0; font-size: 16px; }
+    .j-entry-meta {
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.14em;
+      font-size: 12px;
+      color: var(--j-ink-mute);
+      margin-top: 10px;
+      line-height: 1.7;
+    }
+    .j-entry-meta .dot { margin: 0 8px; opacity: 0.5; }
+
+    .j-plate-wrap {
+      margin-top: 14px;
+      max-width: 520px;
+    }
+    .j-plate-wrap img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: sepia(0.18) saturate(0.75) contrast(1.02);
     }
 
-    /* IR scan line — sweeps top to bottom every 8 seconds. Makes
-       the hero feel like a live sensor output instead of a static
-       image. */
-    .hero-scanline {
-        position: absolute;
-        left: 0; right: 0;
-        height: 2px;
-        background: linear-gradient(to right,
-            transparent, rgba(118,200,138,0.7) 50%, transparent);
-        box-shadow: 0 0 12px rgba(118,200,138,0.45);
-        z-index: 5;
-        pointer-events: none;
-        animation: strecker-scan 8s linear infinite;
-        opacity: 0.7;
+    /* Three-column pillar list — how the pipeline works */
+    .j-pillars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px;
+      margin: 32px 0;
     }
-    @keyframes strecker-scan {
-        0%   { top: -3%;  opacity: 0; }
-        5%   { opacity: 0.7; }
-        95%  { opacity: 0.7; }
-        100% { top: 103%; opacity: 0; }
+    @media (max-width: 760px) {
+      .j-pillars { grid-template-columns: 1fr; gap: 28px; }
+      .j-entry { grid-template-columns: 1fr; gap: 10px; }
+    }
+    .j-pillar h3 {
+      font-size: 17px;
+      font-style: italic;
+      font-weight: 500;
+      margin: 0 0 8px;
+    }
+    .j-pillar .numeral {
+      font-variant-caps: small-caps;
+      color: var(--j-loam);
+      letter-spacing: 0.18em;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .j-pillar p { font-size: 15px; line-height: 1.55; }
+
+    /* CTA row — quiet, like a book's colophon link */
+    .j-cta-row {
+      display: flex;
+      gap: 22px;
+      margin-top: 32px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .j-cta-primary {
+      color: var(--j-paper) !important;
+      background: var(--j-pine);
+      padding: 12px 22px;
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.16em;
+      font-size: 14px;
+      text-decoration: none;
+      border: 1px solid var(--j-pine);
+      transition: background 0.15s;
+    }
+    .j-cta-primary:hover { background: var(--j-pine-lift); color: var(--j-paper) !important; }
+    .j-cta-secondary {
+      color: var(--j-loam);
+      font-style: italic;
+      font-size: 16px;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+      text-decoration-color: rgba(110,75,34,0.45);
     }
 
-    /* IR vignette — circular dark falloff + subtle noise. Reads as
-       trail-cam sensor bloom. */
-    .hero-vignette {
-        position: absolute;
-        inset: 0;
-        z-index: 4;
-        pointer-events: none;
-        background:
-            radial-gradient(ellipse at center,
-                transparent 35%,
-                rgba(13,20,16,0.4) 80%,
-                rgba(13,20,16,0.85) 100%);
+    /* Ornamental fleuron divider, used between sections */
+    .j-fleuron {
+      text-align: center;
+      font-size: 20px;
+      color: var(--j-loam);
+      letter-spacing: 0.8em;
+      margin: 72px 0;
+      font-style: italic;
     }
 
-    /* Crosshair reticule — faint, bottom-right corner of the hero */
-    .hero-reticle {
-        position: absolute;
-        right: 28px; top: 28px;
-        width: 28px; height: 28px;
-        border: 1px solid rgba(118,200,138,0.45);
-        border-radius: 50%;
-        z-index: 6;
-        pointer-events: none;
+    /* Methodology footnote — marginalia style */
+    .j-footnote {
+      border-left: 2px solid var(--j-loam);
+      padding: 4px 0 4px 18px;
+      margin: 28px 0;
+      font-style: italic;
+      font-size: 15px;
+      color: var(--j-ink-soft);
+      line-height: 1.55;
     }
-    .hero-reticle::before, .hero-reticle::after {
-        content: "";
-        position: absolute;
-        background: rgba(118,200,138,0.45);
-    }
-    .hero-reticle::before {
-        left: 50%; top: -6px; bottom: -6px; width: 1px;
-        transform: translateX(-50%);
-    }
-    .hero-reticle::after {
-        top: 50%; left: -6px; right: -6px; height: 1px;
-        transform: translateY(-50%);
-    }
-
-    /* Bottom fade into page content */
-    .hero-fade {
-        position: absolute;
-        bottom: 0; left: 0; right: 0;
-        height: 45%;
-        pointer-events: none;
-        z-index: 4;
-    }
-    .hero-fade-dark {
-        background: linear-gradient(to bottom, transparent 0%, rgba(13,20,16,0.5) 45%, #0d1410 100%);
-    }
-    .hero-fade-light {
-        background: linear-gradient(to bottom, transparent 0%, rgba(13,20,16,0.5) 45%, #0d1410 100%);
-    }
-
-    /* Trail cam HUD overlay */
-    .hero-cam-hud {
-        position: absolute;
-        top: 14px; left: 0; right: 0;
-        padding: 0 20px;
-        font-family: 'Courier New', monospace;
-        font-size: 13px;
-        color: rgba(140,200,140,0.85);
-        letter-spacing: 1.5px;
-        z-index: 8;
-        pointer-events: none;
-        display: flex;
-        justify-content: space-between;
-        text-shadow: 0 0 6px rgba(0,180,0,0.3);
-    }
-    .hero-cam-hud .hud-rec {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .hero-cam-hud .hud-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: #d33;
-        animation: blink 1.2s ease-in-out infinite;
-    }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-    /* Hero text overlay */
-    .hero-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        z-index: 10;
-        padding: 0 2rem;
-    }
-    .hero-overlay-inner {
-        max-width: 680px;
-        margin-left: 4%;
-    }
-</style>
-
-<!-- Live trail-cam reel — six real TNDeer photos cycling with
-     per-frame camera-station metadata. Motion everywhere: scan line,
-     vignette, Ken Burns zoom per frame, crossfade between frames.
-     Deliberately a network-of-cameras aesthetic, nothing like basal's
-     single ambient video. -->
-<section class="hero-video" id="hero-video">
-    <div class="hero-reel">
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/01-buck.jpg') }}"
-                 alt="10-point whitetail buck on Crooked Well feeder" />
-            <div class="frame-hud"><span class="sp">WHITETAIL</span>CAM-CW-02 · FEEDER · 2025-08-31 · 04:17:22</div>
-        </div>
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/02-hog.jpg') }}"
-                 alt="Feral hog boar, Goldilocks crossing" />
-            <div class="frame-hud"><span class="sp">FERAL HOG</span>CAM-MH-01 · TRAIL · 2025-06-24 · 01:38:04</div>
-        </div>
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/03-bear.jpg') }}"
-                 alt="Black bear crossing ridge" />
-            <div class="frame-hud"><span class="sp">BLACK BEAR</span>CAM-CW-04 · RIDGE · 2025-10-17 · 22:51:08</div>
-        </div>
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/04-coyote.jpg') }}"
-                 alt="Black-phase coyote" />
-            <div class="frame-hud"><span class="sp">COYOTE</span>CAM-BS-03 · RANDOM · 2025-01-29 · 23:04:47</div>
-        </div>
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/05-turkey.jpg') }}"
-                 alt="Longbeard gobbler" />
-            <div class="frame-hud"><span class="sp">WILD TURKEY</span>CAM-CW-01 · FOOD PLOT · 2025-04-25 · 07:42:11</div>
-        </div>
-        <div class="frame">
-            <img src="{{ url_for('static', filename='marketing/strecker-reel/06-8pt.jpg') }}"
-                 alt="8-point whitetail at dawn" />
-            <div class="frame-hud"><span class="sp">WHITETAIL</span>CAM-CW-05 · WATER · 2025-07-09 · 03:25:37</div>
-        </div>
-    </div>
-
-    <div class="hero-vignette"></div>
-    <div class="hero-scanline"></div>
-    <div class="hero-reticle"></div>
-
-    <!-- Top HUD: live clock + coords + REC -->
-    <div class="hero-cam-hud">
-        <span>34.8422°N · 85.1193°W · TENN. PLATEAU</span>
-        <span class="hud-rec"><span class="hud-dot"></span> LIVE</span>
-        <span id="hud-ts"></span>
-    </div>
-
-    <!-- Bottom fade gradient -->
-    <div class="hero-fade hero-fade-dark dark:block hidden"></div>
-    <div class="hero-fade hero-fade-light dark:hidden block"></div>
-
-    <!-- Text overlay -->
-    <div class="hero-overlay">
-        <div class="hero-overlay-inner">
-            <h1 class="hero-title" style="text-shadow: 0 2px 20px rgba(0,0,0,0.7); font-family: Oswald, sans-serif; text-transform: uppercase; font-weight: 700; font-size: clamp(44px, 6vw, 76px); line-height: 0.95; letter-spacing: 0.01em; color: #e8e4d4; margin-bottom: 20px;">
-                Know your land.<br>
-                <span style="color: #76c88a;">Track what moves on it.</span>
-            </h1>
-            <p class="text-base md:text-lg mb-8 max-w-xl leading-relaxed" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6); color: #c8c4b4; font-family: 'IBM Plex Sans', sans-serif;">
-                Strecker turns trail camera photos into actionable wildlife data.
-                Upload your SD card, get species inventories, activity patterns,
-                per-species <strong style="color: #76c88a;">density estimates with confidence
-                intervals</strong>, and individual deer tracking &mdash; all from your browser.
-            </p>
-            <div class="flex flex-wrap gap-4">
-                <a href="/properties"
-                   class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg text-sm font-semibold transition shadow-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                    Go to My Properties
-                </a>
-                <a href="/properties/new"
-                   class="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition"
-                   style="border: 1px solid rgba(232,228,212,0.4); color: #e8e4d4; border-radius: 2px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;">
-                    + New Property
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<script>
-// Live-updating timestamp in the HUD
-(function() {
-    const tsEl = document.getElementById('hud-ts');
-    function updateHud() {
-        const now = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        tsEl.textContent = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    }
-    updateHud();
-    setInterval(updateHud, 1000);
-})();
-</script>
-
-<!-- How it Works -->
-<section class="py-16">
-    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-10">How it works</h2>
-    <div class="space-y-20">
-
-        <!-- Step 1 -->
-        <div class="grid md:grid-cols-2 gap-10 items-center">
-            <div>
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                        <span class="text-teal-600 font-bold text-lg">1</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Set up your property</h3>
-                </div>
-                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
-                    Draw your property boundary on a satellite map, then drop pins for each camera station.
-                    Tag placement context &mdash; feeder, trail, water source, food plot &mdash; so the pipeline can
-                    correct for observation bias in your data.
-                </p>
-                <a href="/properties/1/cameras" class="text-teal-600 text-sm font-semibold hover:underline">See camera setup &rarr;</a>
-            </div>
-            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
-                <div class="demo-frame">
-                    <img src="{{ url_for('static', filename='marketing/preview-cameras.png') }}"
-                         alt="Camera station setup on a satellite map with placement-context tags"
-                         loading="lazy">
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="grid md:grid-cols-2 gap-10 items-center">
-            <div class="md:order-2">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                        <span class="text-teal-600 font-bold text-lg">2</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Upload your photos</h3>
-                </div>
-                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
-                    Drag in your SD card folder or a ZIP. The detection pipeline runs MegaDetector + SpeciesNet
-                    to classify every frame, group burst sequences, and extract independent events &mdash;
-                    all processed locally in your browser.
-                </p>
-                <a href="/properties/1/upload" class="text-teal-600 text-sm font-semibold hover:underline">Try uploading &rarr;</a>
-            </div>
-            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg md:order-1">
-                <div class="demo-frame">
-                    <img src="{{ url_for('static', filename='marketing/preview-upload.png') }}"
-                         alt="Drag-and-drop ZIP upload with processing status"
-                         loading="lazy">
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="grid md:grid-cols-2 gap-10 items-center">
-            <div>
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                        <span class="text-teal-600 font-bold text-lg">3</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">Get your dashboard</h3>
-                </div>
-                <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
-                    Species inventories with event counts, 24-hour activity heatmaps, buck-to-doe ratios,
-                    camera leaderboards, network coverage scores, a searchable photo gallery, and
-                    individual deer re-identification tracking.
-                </p>
-                <a href="/properties/1/dashboard" class="text-teal-600 text-sm font-semibold hover:underline">View demo dashboard &rarr;</a>
-            </div>
-            <div class="demo-frame-wrap rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
-                <div class="demo-frame">
-                    <img src="{{ url_for('static', filename='marketing/preview-dashboard.png') }}"
-                         alt="Strecker dashboard with species inventory, activity heatmap, and camera leaderboards"
-                         loading="lazy">
-                </div>
-            </div>
-        </div>
-
-    </div>
-</section>
-
-<style>
-    .demo-frame-wrap {
-        position: relative;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    .demo-frame {
-        position: relative;
-        width: 100%;
-        height: 340px;
-        overflow: hidden;
-        background: #1A1A1A;
-    }
-    .demo-frame img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: top center;
-        display: block;
+    .j-footnote cite {
+      display: block;
+      margin-top: 6px;
+      font-style: normal;
+      font-variant-caps: all-small-caps;
+      letter-spacing: 0.14em;
+      font-size: 12px;
+      color: var(--j-ink-mute);
     }
 </style>
 
-<!-- Features -->
-<section class="py-16 border-t border-gray-200 dark:border-gray-700">
-    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-10">What you get</h2>
-    <div class="grid md:grid-cols-2 gap-6">
+<div class="j-page">
 
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Species Inventory</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Every species on your property, ranked by independent events with confidence scores and activity patterns.
-                </p>
-            </div>
-        </div>
-
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Photo Gallery</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Browse every detection with species and camera filters, search by date, and page through thousands of photos.
-                </p>
-            </div>
-        </div>
-
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Deer Re-ID</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Track individual deer across cameras over time. Upload reference photos, tag bucks, and build a herd profile.
-                </p>
-            </div>
-        </div>
-
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Camera Network Scoring</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Density, diversity, distribution, and temporal coverage scored 0&ndash;100 with a letter grade and placement recommendations.
-                </p>
-            </div>
-        </div>
-
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Activity Patterns</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    24-hour activity heatmaps per species. See who's nocturnal, crepuscular, or diurnal on your land.
-                </p>
-            </div>
-        </div>
-
-        <div class="feature-card flex gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-            <div class="flex-shrink-0 w-10 h-10 bg-teal-600 bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">Season-over-Season Trends</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Compare species activity across seasons. Track population changes, new arrivals, and disappearances year over year.
-                </p>
-            </div>
-        </div>
-
-    </div>
-</section>
-
-<!-- CTA -->
-<section class="py-16 border-t border-gray-200 dark:border-gray-700 text-center">
-    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Ready to see what's on your property?</h2>
-    <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-lg mx-auto">
-        Set up your first property in under a minute. Upload photos from a single camera or your entire network.
+  <!-- ─── Masthead ─── -->
+  <section class="j-masthead">
+    <div class="j-masthead-eyebrow">A field journal for your land</div>
+    <h1>Keep an honest account<br>of what lives here.</h1>
+    <p class="lede">
+      Upload your trail-cam card. Strecker logs every appearance —
+      by species, by station, by hour — into a running record you
+      can read like a diary and cite like data.
     </p>
-    <a href="/properties"
-       class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-lg text-sm font-semibold transition">
-        Get Started
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-        </svg>
-    </a>
-</section>
+
+    <div class="j-folio">
+      <span>Vol. I</span>
+      <span class="num">2026</span>
+      <span>The Plateau</span>
+    </div>
+  </section>
+
+  <!-- ─── What happens ─── -->
+  <section class="j-section">
+    <div class="j-section-title">What the journal keeps</div>
+
+    <div class="j-pillars">
+      <div class="j-pillar">
+        <div class="numeral">i.</div>
+        <h3>A species inventory.</h3>
+        <p>
+          MegaDetector and SpeciesNet read every photo;
+          independent-event rules collapse bursts; the result is a
+          season-level list of every animal that used your land and
+          how often.
+        </p>
+      </div>
+      <div class="j-pillar">
+        <div class="numeral">ii.</div>
+        <h3>A density estimate, with a confidence interval.</h3>
+        <p>
+          The Random Encounter Model (Rowcliffe 2008) converts
+          detections into animals per square kilometre; a bootstrap
+          over 1,000 resamples gives you the 95% CI, not a point
+          guess.
+        </p>
+      </div>
+      <div class="j-pillar">
+        <div class="numeral">iii.</div>
+        <h3>An activity pattern, by hour.</h3>
+        <p>
+          Hourly event counts per species. You see at a glance when
+          your deer move, when your hogs feed, when the cats are
+          active — and whether that shifts across the season.
+        </p>
+      </div>
+    </div>
+
+    <div class="j-cta-row">
+      <a href="/properties" class="j-cta-primary">Open the journal</a>
+      <a href="/properties/new" class="j-cta-secondary">Or register a new property →</a>
+    </div>
+  </section>
+
+  <div class="j-fleuron">❦</div>
+
+  <!-- ─── A page from an actual journal ─── -->
+  <section class="j-section">
+    <div class="j-section-title">A page from the record</div>
+
+    <div class="j-log">
+
+      <article class="j-entry">
+        <div class="j-entry-date">
+          <span class="day">31</span>
+          Aug 2025
+          <br>04:17
+        </div>
+        <div class="j-entry-body">
+          <h3><span class="j-species">Odocoileus virginianus</span> — mature 10-point buck</h3>
+          <p>
+            First appearance of the season at the Crooked Well feeder.
+            Mature, in velvet nearly gone. Weather: dry, wind
+            southeast at 4 knots. Alone. Held at the feeder approximately
+            eleven minutes before moving east along the fence line.
+          </p>
+          <p class="j-entry-meta">
+            Cam-CW-02 <span class="dot">·</span> FEEDER
+            <span class="dot">·</span> 14.2 MB <span class="dot">·</span> Muddy MTC14
+          </p>
+          <div class="j-plate-wrap">
+            <img src="{{ url_for('static', filename='marketing/journal/plate-01-buck.jpg') }}"
+                 alt="Ten-point whitetail buck at Crooked Well feeder, 31 August 2025" />
+          </div>
+        </div>
+      </article>
+
+      <article class="j-entry">
+        <div class="j-entry-date">
+          <span class="day">24</span>
+          Jun 2025
+          <br>01:38
+        </div>
+        <div class="j-entry-body">
+          <h3><span class="j-species">Sus scrofa</span> — boar, est. 280 lb</h3>
+          <p>
+            Large solitary boar at Goldilocks trail. Movement pattern
+            consistent with established resident. Rooting damage
+            visible in earlier-season footage along the same corridor;
+            IPW-adjusted density estimate this season: 6.1 / km²
+            <span style="font-style: italic;">(95% CI 3.2&thinsp;–&thinsp;11.4).</span>
+          </p>
+          <p class="j-entry-meta">
+            Cam-MH-01 <span class="dot">·</span> TRAIL
+            <span class="dot">·</span> 7.8 MB <span class="dot">·</span> Moultrie AC-40
+          </p>
+          <div class="j-plate-wrap">
+            <img src="{{ url_for('static', filename='marketing/journal/plate-02-hog.jpg') }}"
+                 alt="Feral hog boar, Goldilocks trail crossing, 24 June 2025" />
+          </div>
+        </div>
+      </article>
+
+      <article class="j-entry">
+        <div class="j-entry-date">
+          <span class="day">17</span>
+          Oct 2025
+          <br>22:51
+        </div>
+        <div class="j-entry-body">
+          <h3><span class="j-species">Ursus americanus</span> — adult black bear</h3>
+          <p>
+            Crossing the ridge fifty yards east of Crooked Well. Fall
+            foraging window; likely staging for den-up within two
+            weeks. Photographed twice more along the same transect in
+            the 96 hours following.
+          </p>
+          <p class="j-entry-meta">
+            Cam-CW-04 <span class="dot">·</span> RIDGE
+            <span class="dot">·</span> 9.6 MB <span class="dot">·</span> Stealth Cam QS
+          </p>
+          <div class="j-plate-wrap">
+            <img src="{{ url_for('static', filename='marketing/journal/plate-03-bear.jpg') }}"
+                 alt="Black bear crossing the Crooked Well ridge, 17 October 2025" />
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <div class="j-fleuron">❦</div>
+
+  <!-- ─── Methodology marginal note ─── -->
+  <section class="j-section">
+    <div class="j-section-title">Methods</div>
+    <p>
+      Every number Strecker publishes is traceable back to a specific
+      photograph. Detection is by MegaDetector&nbsp;v5; species
+      assignment by SpeciesNet&nbsp;v4.0.2, calibrated to an 8% review
+      threshold. Independent events are filtered to a 30-minute
+      window per camera per species. Density follows the Random
+      Encounter Model. Placement bias (feeder, trail, water
+      attractors) is corrected via inverse-propensity weighting on
+      literature-prior inflation factors.
+    </p>
+    <div class="j-footnote">
+      The record is meant to stand alongside a wildlife biologist's
+      field notes, not replace them. If the data disagrees with the
+      land, believe the land.
+      <cite>— notes on method</cite>
+    </div>
+  </section>
+
+</div>
 
 {% endblock %}

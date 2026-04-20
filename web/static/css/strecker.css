@@ -1,68 +1,63 @@
-/* strecker.css — hunter-facing design system.
+/* strecker.css — "field journal" design system.
  *
- * Deliberately unlike basal.css. Where Basal is editorial (Fraunces /
- * Inter / white paper / forest-lit), Strecker is field-operational —
- * Oswald condensed display + IBM Plex Sans body + Share Tech Mono
- * data, deep forest / olive / hunter-blaze palette, HUD corner
- * brackets, trail-cam timestamp overlays. Someone looking at both
- * sites should not connect them.
+ * This is a complete teardown and rebuild. Nothing was inherited
+ * from any previous Strecker iteration or from Basal. No tactical
+ * HUD, no tickers, no blaze orange, no IR green, no animations,
+ * no corner brackets.
  *
- * Scope: everything in the file is gated behind `body.strecker` so it
- * never leaks into the basal site (which shares base.html).
+ * The metaphor is a naturalist's working notebook. Cream paper,
+ * warm ink, a single literary serif, generous whitespace, quiet
+ * type. Species names italicized like Linnaean binomials. Images
+ * treated as archival plates — desaturated, vignetted — captioned
+ * in small caps. Navigation set like a book's section headers.
  *
- * Typography: Oswald / IBM Plex Sans / Share Tech Mono (loaded from
- * Google Fonts in base.html when site == 'strecker').
+ * Audience: landowners and hunters who keep records and care
+ * about the work. The visual language says "I maintain a careful
+ * account of what lives on this land" — not "I watch security
+ * cameras."
+ *
+ * Scoped to body.strecker so basal.eco stays untouched.
  */
 
 /* ────────────────────────────────────────────────────────────────
- * Design tokens
+ * Tokens
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker {
   /* Surfaces */
-  --s-ink:          #0d1410;   /* deep forest near-black, page */
-  --s-bark:         #161f18;   /* elevated cards */
-  --s-bark-lift:   #1d271f;   /* hover / selected */
-  --s-rule:         #283328;   /* hairlines */
-  --s-rule-strong: #3a4a3b;   /* heavier dividers */
+  --j-paper:        #eae2cf;   /* base cream — page */
+  --j-paper-deep:   #e0d7c0;   /* card, inset panels */
+  --j-paper-bright: #f3ecdb;   /* hover, highlight */
+  --j-rule:         #c9c0a6;   /* faint contour lines */
+  --j-rule-ink:     #8c8573;   /* inked rules */
 
-  /* Ink (text) */
-  --s-canvas:       #e8e4d4;   /* primary text, warm off-white */
-  --s-canvas-dim:  #9e9a87;   /* secondary */
-  --s-canvas-mute: #6b6a5d;   /* tertiary / captions */
+  /* Ink */
+  --j-ink:       #17130c;      /* primary text, warm near-black */
+  --j-ink-soft: #3f362a;      /* secondary */
+  --j-ink-mute: #7d7560;      /* tertiary / metadata */
 
-  /* Accents */
-  --s-moss:         #5d7043;   /* olive, secondary data */
-  --s-moss-deep:    #415030;
-  --s-blaze:        #e0652a;   /* hunter orange, primary CTA */
-  --s-blaze-deep:   #b04d1d;   /* hover */
-  --s-blaze-dim:    #6b3818;   /* subdued CTA background */
-  --s-ir:           #76c88a;   /* IR trail-cam green, live/active */
-  --s-ir-dim:       #3a6d48;
-  --s-amber:        #c59739;   /* amber, warnings */
-  --s-earth:        #7a3a28;   /* earth red, critical */
+  /* Accents — muted, warm, used only as seasoning */
+  --j-loam:      #6e4b22;      /* walnut — section rules, pull quotes */
+  --j-pine:      #284531;      /* deep pine — CTAs, active state */
+  --j-pine-lift: #375d42;      /* hover */
+  --j-rust:      #8e3a1f;      /* iron oxide — sparingly, for emphasis */
 
-  /* Fonts */
-  --s-display: "Oswald", "Impact", sans-serif;
-  --s-body:    "IBM Plex Sans", "Helvetica Neue", sans-serif;
-  --s-mono:    "Share Tech Mono", "Consolas", monospace;
-
-  /* Shape */
-  --s-radius-sm:  2px;
-  --s-radius:     4px;
-  --s-radius-lg:  6px;
+  /* Type — one variable serif family for the whole document */
+  --j-serif:  "Source Serif 4", "Source Serif Pro", "Iowan Old Style",
+              "Palatino Linotype", Palatino, Georgia, serif;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Page shell
+ * Base
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker {
-  background: var(--s-ink);
-  color: var(--s-canvas);
-  font-family: var(--s-body);
-  font-size: 14px;
-  line-height: 1.5;
+  background: var(--j-paper);
+  color: var(--j-ink);
+  font-family: var(--j-serif);
+  font-size: 17px;
+  line-height: 1.55;
+  font-feature-settings: "kern", "liga", "onum", "pnum";
   min-height: 100vh;
 }
 
@@ -71,131 +66,161 @@ body.strecker * {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle topographic grid on the page background — barely visible,
-   gives the canvas a field-map texture without becoming distracting. */
-body.strecker::before {
-  content: "";
-  position: fixed; inset: 0;
+/* Paper texture — very subtle mottle via layered radial gradients.
+   Reads as old paper, not as a digital backdrop. */
+body.strecker {
   background-image:
-    linear-gradient(to right,  rgba(93,112,67,0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(93,112,67,0.04) 1px, transparent 1px);
-  background-size: 64px 64px;
-  pointer-events: none;
-  z-index: 0;
+    radial-gradient(ellipse 900px 600px at 18% 12%,
+      rgba(255,250,230,0.35), transparent 70%),
+    radial-gradient(ellipse 700px 500px at 82% 88%,
+      rgba(150,120,80,0.08), transparent 70%),
+    radial-gradient(ellipse 500px 300px at 60% 45%,
+      rgba(120,90,50,0.05), transparent 70%);
 }
-body.strecker > * { position: relative; z-index: 1; }
 
 /* ────────────────────────────────────────────────────────────────
- * Nav / header — tactical bar
+ * Nav — quiet masthead, like the top of a book section
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker header {
-  background: var(--s-ink);
-  border-bottom: 1px solid var(--s-rule-strong);
+  background: transparent;
+  border-bottom: 1px solid var(--j-rule);
   position: relative;
+  padding: 18px 0 14px;
+  box-shadow: none;
 }
 body.strecker header::after {
-  /* IR-green tracer line under the nav */
+  /* Thin secondary rule under the main, in the old textbook manner */
   content: "";
-  position: absolute; left: 0; right: 0; bottom: -1px;
-  height: 1px;
-  background: linear-gradient(to right,
-    transparent, var(--s-ir-dim) 20%, var(--s-ir-dim) 80%, transparent);
+  position: absolute;
+  left: 0; right: 0; bottom: 3px;
+  border-bottom: 1px solid var(--j-rule);
   opacity: 0.6;
 }
 
-body.strecker header a[href="/"] {
-  font-family: var(--s-display);
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--s-canvas);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+body.strecker header > div {
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+  max-width: 1080px !important;
 }
-body.strecker header a[href="/"]::before {
-  /* Crosshair mark — SVG via mask so it inherits currentColor */
-  content: "";
-  width: 20px; height: 20px;
-  display: inline-block;
-  background-color: var(--s-ir);
-  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='12' cy='12' r='2' fill='currentColor'/><line x1='12' y1='2' x2='12' y2='6' stroke='currentColor' stroke-width='1.5'/><line x1='12' y1='18' x2='12' y2='22' stroke='currentColor' stroke-width='1.5'/><line x1='2' y1='12' x2='6' y2='12' stroke='currentColor' stroke-width='1.5'/><line x1='18' y1='12' x2='22' y2='12' stroke='currentColor' stroke-width='1.5'/></svg>") center/contain no-repeat;
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='12' cy='12' r='2' fill='currentColor'/><line x1='12' y1='2' x2='12' y2='6' stroke='currentColor' stroke-width='1.5'/><line x1='12' y1='18' x2='12' y2='22' stroke='currentColor' stroke-width='1.5'/><line x1='2' y1='12' x2='6' y2='12' stroke='currentColor' stroke-width='1.5'/><line x1='18' y1='12' x2='22' y2='12' stroke='currentColor' stroke-width='1.5'/></svg>") center/contain no-repeat;
+
+body.strecker header a[href="/"] {
+  font-family: var(--j-serif);
+  font-weight: 400;
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  color: var(--j-ink);
+  text-transform: none;
+  display: inline-flex; align-items: baseline; gap: 8px;
+}
+body.strecker header a[href="/"]::before { display: none; }
+body.strecker header a[href="/"]::after {
+  content: "—";
+  color: var(--j-ink-mute);
+  font-style: normal;
+  margin-left: 4px;
 }
 
 body.strecker header nav a {
-  font-family: var(--s-mono);
-  font-size: 12px;
-  text-transform: uppercase;
+  font-family: var(--j-serif);
+  font-variant-caps: all-small-caps;
+  font-size: 14px;
   letter-spacing: 0.1em;
-  color: var(--s-canvas-dim);
+  color: var(--j-ink-soft);
+  text-decoration: none;
   transition: color 0.15s;
+  padding: 4px 0;
 }
-body.strecker header nav a:hover { color: var(--s-ir); }
+body.strecker header nav a:hover { color: var(--j-pine); }
 
 body.strecker #dark-toggle,
-body.strecker button[onclick*="toggleDarkMode"] {
-  display: none !important;   /* Strecker is always dark-field */
+body.strecker button[onclick*="toggleDarkMode"],
+body.strecker button[onclick*="toggleMobileMenu"] {
+  display: none !important;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Typography
+ * Typography hierarchy
  * ──────────────────────────────────────────────────────────────── */
 
-body.strecker h1, body.strecker h2, body.strecker h3 {
-  font-family: var(--s-display);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--s-canvas);
+body.strecker h1, body.strecker h2, body.strecker h3, body.strecker h4 {
+  font-family: var(--j-serif);
+  color: var(--j-ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 body.strecker h1 {
-  font-size: 36px;
-  line-height: 1.1;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+  font-size: 56px;
+  line-height: 1.04;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
 }
 body.strecker h2 {
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1.2;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 400;
+  font-style: italic;
+  margin: 48px 0 12px;
+  color: var(--j-ink);
 }
 body.strecker h3 {
-  font-size: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 18px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  margin: 28px 0 6px;
 }
 
-body.strecker .mono, body.strecker code, body.strecker pre {
-  font-family: var(--s-mono);
+body.strecker p { font-size: 17px; line-height: 1.6; color: var(--j-ink-soft); }
+
+body.strecker a {
+  color: var(--j-pine);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(40,69,49,0.45);
+}
+body.strecker a:hover { color: var(--j-pine-lift); text-decoration-color: var(--j-pine-lift); }
+
+/* Drop caps on first paragraph after an h1 — literary opener */
+body.strecker h1 + p::first-letter {
+  font-size: 3.4em;
+  line-height: 0.9;
+  float: left;
+  margin: 0.02em 0.08em 0 -0.04em;
+  font-weight: 600;
+  color: var(--j-loam);
 }
 
-/* Restyle Tailwind typography utility classes that templates rely on */
-body.strecker .text-slate-700,
-body.strecker .dark .text-gray-100,
-body.strecker .text-gray-100 {
-  color: var(--s-canvas);
+/* Small-caps metadata — used for datelines, camera IDs, species */
+body.strecker .j-meta {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.14em;
+  font-size: 13px;
+  color: var(--j-ink-mute);
+  font-style: normal;
 }
-body.strecker .text-slate-500,
-body.strecker .text-slate-400,
-body.strecker .dark .text-gray-400,
-body.strecker .text-gray-400,
-body.strecker .dark .text-gray-300,
-body.strecker .text-gray-300 {
-  color: var(--s-canvas-dim);
+
+body.strecker .j-species {
+  font-style: italic;
+  font-weight: 500;
 }
-body.strecker .text-teal-600 {
-  color: var(--s-ir);
+
+body.strecker .j-dateline {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.2em;
+  font-size: 13px;
+  color: var(--j-loam);
+  border-bottom: 1px solid var(--j-rule-ink);
+  padding-bottom: 6px;
+  margin-bottom: 14px;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Panels / cards — HUD corner brackets
- *
- * Any template card using the Tailwind shape
- *   "bg-white dark:bg-gray-800 border ... rounded-lg"
- * gets restyled to a bark panel with olive corner brackets.
+ * Restyle Tailwind classes templates already use
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker .bg-white,
@@ -203,7 +228,7 @@ body.strecker .dark .bg-gray-800,
 body.strecker .bg-gray-800,
 body.strecker .bg-gray-50,
 body.strecker .dark .bg-gray-900 {
-  background: var(--s-bark) !important;
+  background: var(--j-paper-deep) !important;
 }
 
 body.strecker .border-gray-200,
@@ -211,85 +236,58 @@ body.strecker .dark .border-gray-700,
 body.strecker .border-gray-700,
 body.strecker .border-gray-100,
 body.strecker .dark .border-gray-800 {
-  border-color: var(--s-rule) !important;
+  border-color: var(--j-rule) !important;
 }
 
 body.strecker .rounded-lg,
 body.strecker .rounded-xl,
-body.strecker .rounded-2xl { border-radius: var(--s-radius) !important; }
+body.strecker .rounded-2xl { border-radius: 0 !important; }
 
 body.strecker .shadow,
 body.strecker .shadow-sm,
 body.strecker .shadow-md,
-body.strecker .hover\:shadow-md:hover { box-shadow: none !important; }
+body.strecker .shadow-lg,
+body.strecker .hover\:shadow-md:hover,
+body.strecker .hover\:shadow-lg:hover { box-shadow: none !important; }
 
-/* Corner brackets on any element that carries the .hud-panel class.
-   Applied in base.html template where card-like boxes live. */
-body.strecker .hud-panel {
-  position: relative;
-  background: var(--s-bark);
-  border: 1px solid var(--s-rule);
-  padding: 20px;
-}
-body.strecker .hud-panel::before,
-body.strecker .hud-panel::after,
-body.strecker .hud-panel > .hud-corner-tr,
-body.strecker .hud-panel > .hud-corner-br {
-  content: "";
-  position: absolute;
-  width: 10px; height: 10px;
-  border-color: var(--s-ir);
-  pointer-events: none;
-}
-body.strecker .hud-panel::before { /* top-left */
-  top: -1px; left: -1px;
-  border-top: 1.5px solid; border-left: 1.5px solid;
-}
-body.strecker .hud-panel::after {  /* bottom-left */
-  bottom: -1px; left: -1px;
-  border-bottom: 1.5px solid; border-left: 1.5px solid;
-}
+body.strecker .text-slate-700,
+body.strecker .dark .text-gray-100,
+body.strecker .text-gray-100 { color: var(--j-ink); }
 
-/* ────────────────────────────────────────────────────────────────
- * Buttons / CTAs
- * ──────────────────────────────────────────────────────────────── */
+body.strecker .text-slate-500,
+body.strecker .dark .text-gray-400,
+body.strecker .text-gray-400 { color: var(--j-ink-mute); }
 
+body.strecker .text-teal-600,
+body.strecker .text-teal-400 { color: var(--j-pine); }
+
+/* CTAs → pine ink with a thin rule instead of a pill */
 body.strecker .bg-teal-600,
 body.strecker .hover\:bg-teal-700:hover {
-  background: var(--s-blaze) !important;
-  color: var(--s-canvas) !important;
+  background: var(--j-pine) !important;
+  color: var(--j-paper) !important;
 }
 body.strecker .bg-teal-600 {
-  border-radius: var(--s-radius-sm) !important;
-  font-family: var(--s-mono);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border: 1px solid var(--s-blaze-deep);
-  transition: all 0.15s;
+  border-radius: 0 !important;
+  font-family: var(--j-serif);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.14em;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 20px !important;
+  border: 1px solid var(--j-pine);
+  transition: background 0.15s;
 }
-body.strecker .bg-teal-600:hover {
-  background: var(--s-blaze-deep) !important;
-  box-shadow: 0 0 12px -2px var(--s-blaze);
-}
+body.strecker .bg-teal-600:hover { background: var(--j-pine-lift) !important; }
 
-body.strecker .border-teal-600,
-body.strecker .text-teal-600.border {
-  border-color: var(--s-ir) !important;
-  color: var(--s-ir) !important;
-}
-
-/* Inline link-style CTAs (Dashboard → etc.) */
-body.strecker a.text-teal-600,
-body.strecker .text-teal-600 {
-  font-family: var(--s-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 12px;
+/* Secondary outline buttons */
+body.strecker .border-teal-600 {
+  border-color: var(--j-loam) !important;
+  color: var(--j-loam) !important;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Form inputs
+ * Form inputs — sober, inked-underline style
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker input[type="text"],
@@ -302,99 +300,73 @@ body.strecker input[type="tel"],
 body.strecker input[type="date"],
 body.strecker textarea,
 body.strecker select {
-  background: var(--s-ink) !important;
-  color: var(--s-canvas) !important;
-  border: 1px solid var(--s-rule-strong) !important;
-  border-radius: var(--s-radius-sm) !important;
-  font-family: var(--s-mono) !important;
-  font-size: 13px !important;
+  background: var(--j-paper-bright) !important;
+  color: var(--j-ink) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--j-rule-ink) !important;
+  border-radius: 0 !important;
+  font-family: var(--j-serif) !important;
+  font-size: 16px !important;
+  padding: 6px 2px !important;
 }
-body.strecker input::placeholder,
-body.strecker textarea::placeholder {
-  color: var(--s-canvas-mute) !important;
-  font-family: var(--s-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 11px;
-}
-
 body.strecker input:focus,
 body.strecker textarea:focus,
 body.strecker select:focus {
   outline: none !important;
-  border-color: var(--s-ir) !important;
-  box-shadow: 0 0 0 1px var(--s-ir) !important;
+  border-bottom-color: var(--j-pine) !important;
+  box-shadow: none !important;
+  background: var(--j-paper-bright) !important;
+}
+body.strecker input::placeholder,
+body.strecker textarea::placeholder {
+  color: var(--j-ink-mute) !important;
+  font-style: italic;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Dashboard — stat tiles + species cards
+ * Archival plate — how photos render in this design
  * ──────────────────────────────────────────────────────────────── */
 
-/* Large stat numerals — display face, IR-green */
-body.strecker .text-2xl,
-body.strecker .text-3xl,
-body.strecker .text-4xl {
-  font-family: var(--s-display);
-  letter-spacing: 0.02em;
+body.strecker .j-plate {
+  position: relative;
+  background: var(--j-ink);
+  padding: 0;
 }
-
-/* Stat labels in mono caps */
-body.strecker .text-xs.text-slate-500,
-body.strecker .text-xs.text-gray-400,
-body.strecker .text-sm.text-slate-500 {
-  font-family: var(--s-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 11px;
+body.strecker .j-plate img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: sepia(0.18) saturate(0.75) contrast(1.02);
 }
-
-/* Badges (nocturnal/crepuscular/diurnal / recommend survey / etc.) —
-   make them tactical labels instead of rounded pills. */
-body.strecker .rounded-full.bg-yellow-100,
-body.strecker .rounded-full.bg-red-100,
-body.strecker .rounded-full.bg-green-100,
-body.strecker .bg-amber-100, body.strecker .bg-orange-100 {
-  border-radius: var(--s-radius-sm) !important;
-  background: transparent !important;
-  border: 1px solid var(--s-amber) !important;
-  color: var(--s-amber) !important;
-  font-family: var(--s-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 10px;
-  padding: 2px 6px;
+body.strecker .j-plate-caption {
+  margin-top: 10px;
+  padding-left: 2px;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  color: var(--j-ink-mute);
+  border-left: 2px solid var(--j-loam);
+  padding-left: 10px;
 }
-body.strecker .rounded-full.bg-red-100,
-body.strecker .bg-red-100 { border-color: var(--s-earth) !important; color: #d47a63 !important; }
-body.strecker .rounded-full.bg-green-100,
-body.strecker .bg-green-100 { border-color: var(--s-ir-dim) !important; color: var(--s-ir) !important; }
 
 /* ────────────────────────────────────────────────────────────────
- * Hero / landing — trail-cam HUD overlay stays, typography shifts
+ * Rule marks — ornamental horizontal rules
  * ──────────────────────────────────────────────────────────────── */
 
-body.strecker .hero-title,
-body.strecker h1.hero {
-  font-family: var(--s-display);
-  font-weight: 700;
-  font-size: clamp(42px, 6vw, 72px);
-  line-height: 0.95;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  color: var(--s-canvas);
+body.strecker hr,
+body.strecker .j-rule {
+  border: none;
+  border-top: 1px solid var(--j-rule-ink);
+  margin: 36px 0;
+  position: relative;
+  height: 1px;
 }
-
-/* Hero fade — home.html's template toggles between a dark-fade and
-   a light-fade based on the `html.dark` class. Strecker doesn't use
-   that class (we're dark-always), so force the dark fade to show and
-   the light fade to stay hidden regardless of the toggle state. */
-body.strecker .hero-fade-light { display: none !important; }
-body.strecker .hero-fade-dark {
-  display: block !important;
-  background: linear-gradient(to bottom,
-    transparent 0%,
-    rgba(13,20,16,0.55) 45%,
-    var(--s-ink) 100%) !important;
+body.strecker .j-rule-fleur {
+  text-align: center;
+  color: var(--j-loam);
+  font-size: 14px;
+  letter-spacing: 1em;
+  margin: 40px 0;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -402,110 +374,22 @@ body.strecker .hero-fade-dark {
  * ──────────────────────────────────────────────────────────────── */
 
 body.strecker footer {
-  background: var(--s-ink);
-  border-top: 1px solid var(--s-rule);
-  color: var(--s-canvas-mute);
-  font-family: var(--s-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 18px 0;
+  background: transparent;
+  border-top: 1px solid var(--j-rule);
+  margin-top: 80px;
+  padding: 28px 0;
+  color: var(--j-ink-mute);
+  font-style: italic;
+  font-size: 14px;
+  text-align: center;
 }
 
 /* ────────────────────────────────────────────────────────────────
- * Utility classes referenced from templates
+ * Responsive trim
  * ──────────────────────────────────────────────────────────────── */
 
-body.strecker .s-stencil {
-  font-family: var(--s-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+@media (max-width: 720px) {
+  body.strecker { font-size: 16px; }
+  body.strecker h1 { font-size: 38px; }
+  body.strecker h2 { font-size: 22px; }
 }
-body.strecker .s-meta {
-  font-family: var(--s-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 11px;
-  color: var(--s-canvas-dim);
-}
-body.strecker .s-tracer {
-  display: inline-block;
-  width: 6px; height: 6px;
-  background: var(--s-ir);
-  border-radius: 50%;
-  box-shadow: 0 0 6px var(--s-ir);
-  animation: s-pulse 2s ease-in-out infinite;
-}
-@keyframes s-pulse {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 1;   }
-}
-
-/* ────────────────────────────────────────────────────────────────
- * Detection ticker — scrolls under the nav on every page
- *
- * Reads as a live-sensor feed from the camera network. Pure CSS,
- * no JS, set of entries duplicated so the loop is seamless.
- * ──────────────────────────────────────────────────────────────── */
-
-body.strecker .s-ticker {
-  position: relative;
-  background: #05080a;
-  border-bottom: 1px solid var(--s-rule-strong);
-  overflow: hidden;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  z-index: 40;
-}
-body.strecker .s-ticker-label {
-  flex: 0 0 auto;
-  padding: 0 16px;
-  font-family: var(--s-mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--s-ir);
-  background: #0a1211;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  border-right: 1px solid var(--s-rule-strong);
-  text-shadow: 0 0 8px rgba(118,200,138,0.45);
-}
-body.strecker .s-ticker-track {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-  height: 100%;
-  mask-image: linear-gradient(to right,
-    transparent, #000 40px, #000 calc(100% - 80px), transparent);
-  -webkit-mask-image: linear-gradient(to right,
-    transparent, #000 40px, #000 calc(100% - 80px), transparent);
-}
-body.strecker .s-ticker-run {
-  display: flex;
-  align-items: center;
-  gap: 48px;
-  height: 100%;
-  white-space: nowrap;
-  animation: s-ticker-scroll 70s linear infinite;
-  font-family: var(--s-mono);
-  font-size: 11px;
-  color: var(--s-canvas-dim);
-  letter-spacing: 0.1em;
-  padding-left: 40px;
-}
-body.strecker .s-ticker-run span { flex: 0 0 auto; }
-body.strecker .s-ticker-run b {
-  color: var(--s-blaze);
-  font-weight: 700;
-  margin-right: 6px;
-}
-@keyframes s-ticker-scroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-/* Give the hero reel container its own sizing under strecker */
-body.strecker .hero-video { background: var(--s-ink); }
