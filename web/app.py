@@ -185,12 +185,22 @@ def _seed_strecker_demo(hunter, db, Property, Camera, Season, Upload,
 def create_app(demo: bool = False, site: str = "strecker") -> Flask:
     """Create and configure the Flask application.
 
-    Args:
-        demo: If True, use in-memory SQLite instead of PostGIS.
-        site: "strecker" (hunter-facing) or "basal" (owner/insurer-facing).
+    The `site` argument is the *default* — used when there is no active
+    request (CLI scripts, background workers) or when the request's Host
+    header doesn't match either brand. At request time, the effective
+    site is resolved from the Host header and stashed on ``flask.g``:
+
+        basal.eco, *.basal.eco, basalinformatics.com     → "basal"
+        strecker.*, *.strecker.*                         → "strecker"
+        otherwise                                         → `site` default
+
+    Blueprints for both sites are registered at boot. Routes that differ
+    per-site (the `/` landing, `/methodology`) branch on the request's
+    effective site rather than the boot-time default.
     """
     app = Flask(__name__)
     app.config["SITE"] = site
+    app.config["DEFAULT_SITE"] = site
 
     # Core config
     from config import settings
@@ -225,97 +235,99 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
     from web.routes.auth import auth_bp
     app.register_blueprint(auth_bp)
 
-    if site == "strecker":
-        # Hunter-facing blueprints only
-        from web.routes.feedback import feedback_bp
-        from web.routes.upload import upload_bp
-        from web.routes.results import results_bp
-        from web.routes.properties import properties_bp
-        from web.routes.api.properties import properties_api_bp
-        from web.routes.api.camera_stations import camera_stations_api_bp
-        from web.routes.api.uploads import uploads_api_bp
-        from web.routes.api.dashboard import dashboard_api_bp
-        from web.routes.api.share import share_api_bp
-        from web.routes.api.reid import reid_api_bp
-        # Pre-signed upload flow — lives primarily on the basal (lender)
-        # site but the hunter upload UI uses the /api/properties alias,
-        # so we also register it here. Same handlers, same storage.
-        from web.routes.api.parcel_uploads import (
-            parcel_uploads_bp as _pu_bp,
-            property_uploads_bp as _pp_bp,
-        )
-        # Tokenized (passwordless) upload flow — share a link to a
-        # landowner, they upload without an account. Register on both
-        # sites so the link works regardless of which host resolves.
-        from web.routes.api.token_uploads import (
-            token_uploads_bp as _tu_bp,
-            upload_tokens_bp as _ut_bp,
-        )
+    # ── Register ALL blueprints (both sites) at boot ──
+    # Both brands share a database and a codebase; the active brand is
+    # decided per-request by Host header. URL spaces don't overlap, so
+    # registering everything is safe. See active_site() below.
 
-        app.register_blueprint(feedback_bp)
-        app.register_blueprint(upload_bp)
-        app.register_blueprint(results_bp)
-        app.register_blueprint(properties_bp)
-        app.register_blueprint(properties_api_bp)
-        app.register_blueprint(camera_stations_api_bp)
-        app.register_blueprint(uploads_api_bp)
-        app.register_blueprint(dashboard_api_bp)
-        app.register_blueprint(share_api_bp)
-        app.register_blueprint(reid_api_bp)
-        app.register_blueprint(_pu_bp)
-        app.register_blueprint(_pp_bp)
-        app.register_blueprint(_tu_bp)
-        app.register_blueprint(_ut_bp)
+    # Strecker (hunter-facing) blueprints
+    from web.routes.feedback import feedback_bp
+    from web.routes.upload import upload_bp
+    from web.routes.results import results_bp
+    from web.routes.properties import properties_bp
+    from web.routes.api.properties import properties_api_bp
+    from web.routes.api.camera_stations import camera_stations_api_bp
+    from web.routes.api.uploads import uploads_api_bp
+    from web.routes.api.dashboard import dashboard_api_bp
+    from web.routes.api.share import share_api_bp
+    from web.routes.api.reid import reid_api_bp
+    # Shared upload flows — tokenized + pre-signed — are used by both
+    # brands. Register once here; either host can consume them.
+    from web.routes.api.parcel_uploads import (
+        parcel_uploads_bp, property_uploads_bp,
+    )
+    from web.routes.api.token_uploads import (
+        token_uploads_bp, upload_tokens_bp,
+    )
 
-        # Exempt JSON API endpoints from CSRF (they use auth tokens, not cookies)
-        for bp in (properties_api_bp, camera_stations_api_bp,
-                   uploads_api_bp, dashboard_api_bp,
-                   share_api_bp, reid_api_bp, _pu_bp, _pp_bp,
-                   _tu_bp, _ut_bp):
-            csrf.exempt(bp)
+    app.register_blueprint(feedback_bp)
+    app.register_blueprint(upload_bp)
+    app.register_blueprint(results_bp)
+    app.register_blueprint(properties_bp)
+    app.register_blueprint(properties_api_bp)
+    app.register_blueprint(camera_stations_api_bp)
+    app.register_blueprint(uploads_api_bp)
+    app.register_blueprint(dashboard_api_bp)
+    app.register_blueprint(share_api_bp)
+    app.register_blueprint(reid_api_bp)
+    app.register_blueprint(parcel_uploads_bp)
+    app.register_blueprint(property_uploads_bp)
+    app.register_blueprint(token_uploads_bp)
+    app.register_blueprint(upload_tokens_bp)
 
-    elif site == "basal":
-        # Basal Informatics — insurer + lender-facing blueprints only
-        from web.routes.demo import demo_bp
-        from web.routes.owner import owner_bp
-        from web.routes.api.owner import owner_api_bp
-        from web.routes.lender import lender_bp
-        from web.routes.api.parcel_uploads import (
-            parcel_uploads_bp, property_uploads_bp,
-        )
-        from web.routes.api.token_uploads import (
-            token_uploads_bp, upload_tokens_bp,
-        )
-        from web.routes.api.camera_stations import camera_stations_api_bp
+    # Basal (insurer + lender-facing) blueprints
+    from web.routes.demo import demo_bp
+    from web.routes.owner import owner_bp
+    from web.routes.api.owner import owner_api_bp
+    from web.routes.lender import lender_bp
 
-        app.register_blueprint(demo_bp)
-        app.register_blueprint(owner_bp)
-        app.register_blueprint(owner_api_bp)
-        app.register_blueprint(lender_bp)
-        app.register_blueprint(parcel_uploads_bp)
-        # Hunter-side alias — same handlers, /api/properties/... URL shape
-        app.register_blueprint(property_uploads_bp)
-        # Tokenized upload flow
-        app.register_blueprint(token_uploads_bp)
-        app.register_blueprint(upload_tokens_bp)
-        # Per-property station-code -> placement_context mapping
-        app.register_blueprint(camera_stations_api_bp)
+    app.register_blueprint(demo_bp)
+    app.register_blueprint(owner_bp)
+    app.register_blueprint(owner_api_bp)
+    app.register_blueprint(lender_bp)
 
-        # Exempt JSON API endpoints from CSRF (auth via session/token, not cookie)
-        csrf.exempt(owner_api_bp)
-        csrf.exempt(parcel_uploads_bp)
-        csrf.exempt(property_uploads_bp)
-        csrf.exempt(token_uploads_bp)
-        csrf.exempt(upload_tokens_bp)
-        csrf.exempt(camera_stations_api_bp)
-        # Lender routes are server-rendered HTML with CSRF on forms only;
-        # the JSON exposure endpoint under /lender/api/ is read-only GET.
+    # CSRF exemptions — JSON APIs authenticate via session/token, not
+    # form cookie, so they don't need CSRF tokens.
+    for bp in (
+        properties_api_bp, camera_stations_api_bp,
+        uploads_api_bp, dashboard_api_bp,
+        share_api_bp, reid_api_bp,
+        parcel_uploads_bp, property_uploads_bp,
+        token_uploads_bp, upload_tokens_bp,
+        owner_api_bp,
+    ):
+        csrf.exempt(bp)
 
-    # ── Static brand context based on site ──
-    is_basal = (site == "basal")
+    # ── Per-request active-site resolution ──
+    # Maps request Host → "basal" | "strecker". The matching rules are
+    # deliberately permissive so that dev (localhost), DO autogenerated
+    # subdomains (*.ondigitalocean.app), and production custom domains
+    # all resolve to a sensible brand.
+    def active_site() -> str:
+        """Resolve the active brand from the current request's Host."""
+        from flask import request, has_request_context
+        if not has_request_context():
+            return app.config.get("DEFAULT_SITE", "strecker")
+        host = (request.host or "").lower().split(":")[0]
+        # Explicit matches by domain
+        if host.endswith("basal.eco") or host.endswith("basalinformatics.com"):
+            return "basal"
+        if host.startswith("strecker.") or ".strecker." in host:
+            return "strecker"
+        # Allow an explicit override via query string for previews
+        # (e.g. ?site=strecker on the DO autogenerated URL).
+        override = request.args.get("site")
+        if override in ("basal", "strecker"):
+            return override
+        return app.config.get("DEFAULT_SITE", "strecker")
 
+    app.active_site = active_site  # expose for views that need it
+
+    # ── Brand context (per-request, host-aware) ──
     @app.context_processor
     def inject_brand():
+        s = active_site()
+        is_basal = (s == "basal")
         return {
             "brand_name": "Basal Informatics" if is_basal else "Strecker",
             "brand_tagline": (
@@ -323,11 +335,13 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
                 if is_basal else
                 "Trail cam intelligence for land managers"
             ),
-            "brand_domain": "basalinformatics.com" if is_basal else "strecker.app",
+            "brand_domain": "basal.eco" if is_basal else "strecker.app",
             "is_basal_site": is_basal,
+            "active_site": s,
         }
 
-    # Auto-login demo user on first request (demo mode only)
+    # Auto-login demo user on first request (demo mode only).
+    # Picks the demo user that matches the request's brand.
     if demo:
         @app.before_request
         def auto_login_demo():
@@ -335,7 +349,8 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
             if current_user.is_authenticated:
                 return
             from db.models import User
-            if site == "strecker":
+            s = active_site()
+            if s == "strecker":
                 user = User.query.filter_by(email="demo@strecker.app").first()
             else:
                 user = User.query.filter_by(email="owner@basal.eco").first()
@@ -390,12 +405,18 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
             db.session.execute(text("SELECT 1")).scalar()
         except Exception:
             db_ok = False
-        return {"status": "ok", "demo": demo, "site": site, "db": db_ok}
+        return {
+            "status": "ok",
+            "demo": demo,
+            "site": active_site(),
+            "default_site": site,
+            "db": db_ok,
+        }
 
     @app.route("/")
     def index():
-        from flask import redirect, render_template
-        if site == "basal":
+        from flask import render_template
+        if active_site() == "basal":
             # Editorial landing for the Basal Informatics brand. Pure
             # marketing — hero, pipeline diagram, sample parcel, pricing.
             # The operating dashboards live at /lender/** and /owner/**.
@@ -411,7 +432,7 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         """
         from flask import render_template, abort
         from pathlib import Path
-        if site != "basal":
+        if active_site() != "basal":
             abort(404)
         md_path = (Path(__file__).parent.parent / "docs" / "METHODOLOGY.md")
         if not md_path.exists():
@@ -639,22 +660,23 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
             from db.models import User, Property, Camera, Season, Upload, DetectionSummary
             from datetime import datetime, timedelta, date
 
-            if site == "basal":
-                owner = User.query.filter_by(email="owner@basal.eco").first()
-                if not owner:
-                    owner = User(
-                        email="owner@basal.eco",
-                        display_name="Basal Informatics",
-                        is_owner=True,
-                    )
-                    owner.set_password("owner123")
-                    db.session.add(owner)
-                    db.session.commit()
-                elif not owner.is_owner:
-                    owner.is_owner = True
-                    db.session.commit()
+            # Seed demo users for BOTH brands — either host can render demo
+            # data in this process now that routing is host-based.
+            owner = User.query.filter_by(email="owner@basal.eco").first()
+            if not owner:
+                owner = User(
+                    email="owner@basal.eco",
+                    display_name="Basal Informatics",
+                    is_owner=True,
+                )
+                owner.set_password("owner123")
+                db.session.add(owner)
+                db.session.commit()
+            elif not owner.is_owner:
+                owner.is_owner = True
+                db.session.commit()
 
-            elif site == "strecker":
+            if True:
                 hunter = User.query.filter_by(email="demo@strecker.app").first()
                 if not hunter:
                     hunter = User(
