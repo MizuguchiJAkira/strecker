@@ -373,6 +373,23 @@ def _process_job(db, ProcessingJob, job_id: str):
         db.session.commit()
         detections = classify(photos, demo=False)
 
+        # Short-circuit when SpeciesNet finds nothing. Real cards can
+        # legitimately return zero detections (all false triggers, wind,
+        # weather, rejected small animals). The report generator assumes
+        # at least one detection — calling it here used to crash with
+        # "min() arg is an empty sequence". Mark the job complete with
+        # zero stats instead of erroring out on the hunter.
+        if not detections:
+            logger.info("Job %s: 0 detections — skipping report", job_id)
+            pj.status = "complete"
+            pj.n_photos = str(len(photos) if photos else 0)
+            pj.n_species = 0
+            pj.n_events = "0"
+            pj.species_json = "[]"
+            pj.completed_at = datetime.utcnow()
+            db.session.commit()
+            return
+
         # ── 4. Report ──
         pj.status = "reporting"
         db.session.commit()
