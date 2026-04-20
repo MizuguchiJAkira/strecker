@@ -14,8 +14,15 @@ auth_bp = Blueprint("auth", __name__)
 
 
 def _default_landing():
-    """Return the appropriate post-login URL based on site config."""
-    if current_app.config.get("SITE") == "basal":
+    """Return the appropriate post-login URL based on the active brand.
+
+    Host-routed: hits against strecker.* land on /properties, hits
+    against basal.* land on /owner/coverage. Falls back to the app's
+    boot-time default if there's no request context.
+    """
+    active = getattr(current_app, "active_site", None)
+    site = active() if callable(active) else current_app.config.get("SITE")
+    if site == "basal":
         return "/owner/coverage"
     return url_for("properties.index")
 
