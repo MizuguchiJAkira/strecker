@@ -613,88 +613,109 @@ def dashboard_coverage(pid):
 )
 @login_required
 def dashboard_photos(pid):
-    """Return photo listings from the sorted output directory.
+    """Return photo listings for the dashboard gallery.
+
+    Reads from the ``photos`` table (populated by the worker) and
+    returns short-lived presigned Spaces GET URLs for each photo so
+    the browser can render thumbnails direct from object storage.
 
     Query params:
         species  — filter by species_key (optional)
         camera   — filter by camera label prefix (optional)
+        q        — free-text search across species/camera/date
         page     — page number, default 1
         per_page — items per page, default 40
     """
-    import re
-    from pathlib import Path
+    from db.models import Photo, Camera
+    from strecker import storage as _storage
 
     prop = _get_user_property(pid)
     if not prop:
         return jsonify({"error": "Property not found"}), 404
 
-    species_filter = request.args.get("species", "")
-    camera_filter = request.args.get("camera", "")
+    species_filter = request.args.get("species", "").strip()
+    camera_filter = request.args.get("camera", "").strip()
     search_query = request.args.get("q", "").strip().lower()
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 40, type=int)
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = min(max(request.args.get("per_page", 40, type=int), 1), 200)
 
-    sorted_dir = (
-        Path(__file__).parent.parent.parent.parent / "demo" / "output" / "sorted"
+    # Resolve the camera filter (UI sends camera_label, we need cam.id)
+    camera_id_filter = None
+    if camera_filter:
+        cam = Camera.query.filter_by(
+            property_id=prop.id, camera_label=camera_filter,
+        ).first()
+        # Unknown label -> empty page, not 400. Frontend can degrade.
+        if not cam:
+            return jsonify({
+                "photos": [], "total": 0, "page": 1, "pages": 0,
+                "species_list": [],
+            })
+        camera_id_filter = cam.id
+
+    q = Photo.query.filter_by(property_id=prop.id)
+    if species_filter:
+        q = q.filter(Photo.species_key == species_filter)
+    if camera_id_filter is not None:
+        q = q.filter(Photo.camera_id == camera_id_filter)
+    if search_query:
+        like = f"%{search_query}%"
+        q = q.filter(
+            db.or_(
+                Photo.common_name.ilike(like),
+                Photo.species_key.ilike(like),
+                Photo.original_name.ilike(like),
+            )
+        )
+
+    # For the species dropdown: compute from the unfiltered property
+    # scope so toggling a filter doesn't shrink the options list.
+    species_list = sorted(
+        s for (s,) in db.session.query(Photo.species_key)
+        .filter(Photo.property_id == prop.id)
+        .filter(Photo.species_key.isnot(None))
+        .distinct().all() if s
     )
-    if not sorted_dir.exists():
-        return jsonify({"photos": [], "total": 0, "page": 1, "pages": 0})
 
-    species_dirs = [
-        d for d in sorted_dir.iterdir()
-        if d.is_dir() and (not species_filter or d.name == species_filter)
-    ]
+    total = q.count()
+    pages = (total + per_page - 1) // per_page if per_page else 1
+
+    # Camera label lookup cached per-request
+    cam_lookup = {
+        c.id: c.camera_label
+        for c in Camera.query.filter_by(property_id=prop.id).all()
+    }
+
+    rows = (q.order_by(Photo.taken_at.desc().nullslast(), Photo.id.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page).all())
 
     photos = []
-    fname_re = re.compile(
-        r"^(CAM-\w+)_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_(\d+)\.jpg$",
-        re.IGNORECASE,
-    )
-
-    for sp_dir in sorted(species_dirs):
-        sp_key = sp_dir.name
-        common = COMMON_NAMES.get(sp_key, sp_key.replace("_", " ").title())
-        for img in sorted(sp_dir.glob("*.jpg")):
-            m = fname_re.match(img.name)
-            if not m:
-                continue
-            cam = m.group(1)
-            if camera_filter and not cam.startswith(camera_filter):
-                continue
-            photos.append({
-                "filename": img.name,
-                "species_key": sp_key,
-                "common_name": common,
-                "camera": cam,
-                "date": f"{m.group(2)}-{m.group(3)}-{m.group(4)}",
-                "time": f"{m.group(5)}:{m.group(6)}:{m.group(7)}",
-                "burst_idx": int(m.group(8)),
-                "url": f"/photos/{sp_key}/{img.name}",
-            })
-
-    photos.sort(key=lambda p: (p["date"], p["time"]), reverse=True)
-
-    # Apply search query across species name, camera, date
-    if search_query:
-        photos = [
-            p for p in photos
-            if search_query in p["common_name"].lower()
-            or search_query in p["camera"].lower()
-            or search_query in p["date"]
-            or search_query in p["species_key"].lower()
-        ]
-
-    total = len(photos)
-    pages = (total + per_page - 1) // per_page if per_page else 1
-    start = (page - 1) * per_page
-    paginated = photos[start : start + per_page]
+    for p in rows:
+        url = _storage.presigned_url(p.spaces_key, expires_in=600)
+        photos.append({
+            "id": p.id,
+            "filename": p.original_name or "",
+            "species_key": p.species_key,
+            "common_name": p.common_name or (
+                (p.species_key or "").replace("_", " ").title()
+            ),
+            "camera": cam_lookup.get(p.camera_id, ""),
+            "date": (p.taken_at.strftime("%Y-%m-%d")
+                     if p.taken_at else ""),
+            "time": (p.taken_at.strftime("%H:%M:%S")
+                     if p.taken_at else ""),
+            "confidence": p.confidence,
+            "event_id": p.independent_event_id,
+            "url": url,
+        })
 
     return jsonify({
-        "photos": paginated,
+        "photos": photos,
         "total": total,
         "page": page,
         "pages": pages,
-        "species_list": sorted(set(p["species_key"] for p in photos)),
+        "species_list": species_list,
     })
 
 

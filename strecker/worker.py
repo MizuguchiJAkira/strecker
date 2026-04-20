@@ -154,6 +154,22 @@ def _quarter_for(ts: datetime):
     return q, start, end, label
 
 
+def _common_name_map():
+    """species_key -> human-friendly common name, lazily loaded from the
+    reference config. Cached after first call."""
+    cached = getattr(_common_name_map, "_cache", None)
+    if cached is not None:
+        return cached
+    try:
+        from config.species_reference import SPECIES_REFERENCE
+        m = {k: v.get("common_name") for k, v in SPECIES_REFERENCE.items()
+             if v.get("common_name")}
+    except Exception:
+        m = {}
+    _common_name_map._cache = m
+    return m
+
+
 def _is_real_species_key(key):
     """Skip SpeciesNet internal "blank" / "no_cv_result" UUID class ids
     before aggregation. Those keys leak into the Basal dashboard as
@@ -176,7 +192,7 @@ def _is_real_species_key(key):
     return True
 
 
-def _aggregate_to_property(db, pj, detections):
+def _aggregate_to_property(db, pj, detections, extract_dir=None):
     """Per-property aggregation: auto-create Cameras, slice detections
     across Season windows, upsert DetectionSummary rows.
 
@@ -191,9 +207,18 @@ def _aggregate_to_property(db, pj, detections):
     See ``strecker.seasons.resolve_seasons_for_detections``.
     DetectionSummary: (season_id, camera_id, species_key) is unique; sum.
     Filters out SpeciesNet's "blank" / "no_cv_result" internal classes.
+
+    Photos: when ``extract_dir`` is provided, each detection's image is
+    uploaded to Spaces under ``photos/<property_id>/<job_id>/<hash>.jpg``
+    and a Photo row is inserted so the dashboard gallery can surface it.
+    Photo upload is fail-soft — a Spaces hiccup doesn't fail the whole
+    pipeline; aggregate stats still land.
     """
+    import hashlib
     import json as _json
-    from db.models import Camera, Season, Upload, DetectionSummary
+    import os
+    from db.models import Camera, Season, Upload, DetectionSummary, Photo
+    from config import settings as _settings
     from strecker.seasons import group_detections_by_season
 
     # Strip SpeciesNet "blank"/"no_cv_result" detections before anything
@@ -319,6 +344,84 @@ def _aggregate_to_property(db, pj, detections):
                 peak_hour=peak_hour,
                 hourly_distribution=_json.dumps(hourly),
             ))
+
+    # 4b. Upload classified photos to Spaces + insert Photo rows.
+    # Skipped when extract_dir isn't provided (e.g. legacy code paths,
+    # tests). Fail-soft: a Spaces error here doesn't roll back the
+    # DetectionSummary work above — the dashboard KPIs / density still
+    # render, the gallery just stays empty for that job.
+    if extract_dir:
+        try:
+            from strecker import storage as _storage
+            common = _common_name_map()
+            photos_added = 0
+            for d in detections:
+                if not d.camera_id or not d.image_filename:
+                    continue
+                cam = existing_cams.get(d.camera_id)
+                if not cam:
+                    continue
+                season = det_to_season.get(id(d))
+                season_id = season.id if season else None
+                local_path = os.path.join(extract_dir, d.image_filename)
+                if not os.path.exists(local_path):
+                    continue
+                # Stable key: one photo per (job, original path).
+                # Re-runs of the same ZIP upsert safely via unique(spaces_key).
+                digest = hashlib.sha1(
+                    f"{pj.job_id}:{d.image_filename}".encode("utf-8")
+                ).hexdigest()[:16]
+                spaces_key = (
+                    f"photos/{pj.property_id}/{pj.job_id}/{digest}.jpg"
+                )
+                existing_photo = Photo.query.filter_by(
+                    spaces_key=spaces_key
+                ).first()
+                if existing_photo:
+                    continue
+                try:
+                    _storage.put_file(
+                        local_path, spaces_key, content_type="image/jpeg",
+                    )
+                except Exception:
+                    logger.exception(
+                        "Photo upload failed (%s); continuing", spaces_key
+                    )
+                    continue
+                conf = (d.confidence_calibrated
+                        if d.confidence_calibrated is not None
+                        else d.confidence)
+                db.session.add(Photo(
+                    property_id=pj.property_id,
+                    camera_id=cam.id,
+                    season_id=season_id,
+                    processing_job_id=pj.job_id,
+                    spaces_key=spaces_key,
+                    original_name=os.path.basename(d.image_filename),
+                    species_key=d.species_key,
+                    common_name=common.get(
+                        d.species_key,
+                        d.species_key.replace("_", " ").title(),
+                    ),
+                    confidence=conf,
+                    independent_event_id=d.independent_event_id,
+                    review_required=bool(d.review_required),
+                    taken_at=d.timestamp,
+                ))
+                photos_added += 1
+            db.session.flush()
+            if photos_added:
+                logger.info(
+                    "Job %s: uploaded %d photos to Spaces + inserted Photo rows",
+                    pj.job_id, photos_added,
+                )
+        except Exception:
+            logger.exception(
+                "Job %s: photo upload batch failed — KPIs kept, gallery empty",
+                pj.job_id,
+            )
+            # Don't re-raise; the DetectionSummary commit below is what
+            # matters for dashboard stats.
 
     # 5. Mark the Upload complete
     if pj.upload_id:
@@ -477,7 +580,8 @@ def _process_job(db, ProcessingJob, job_id: str):
         # ── 7b. Property-scoped aggregation (dashboard data) ──
         if pj.property_id:
             try:
-                _aggregate_to_property(db, pj, detections)
+                _aggregate_to_property(db, pj, detections,
+                                       extract_dir=extract_dir)
             except Exception:
                 logger.exception(
                     "Job %s: pipeline OK but aggregation failed", job_id)

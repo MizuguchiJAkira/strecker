@@ -482,6 +482,58 @@ class ProcessingJob(db.Model):
         return f"<ProcessingJob {self.job_id} status={self.status}>"
 
 
+# ---------------------------------------------------------------------------
+# Photo — per-photo record backing the dashboard Photo Gallery.
+# ---------------------------------------------------------------------------
+
+class Photo(db.Model):
+    """One photo the worker classified + stored in Spaces.
+
+    Only photos SpeciesNet flagged with at least one animal detection
+    above threshold are persisted — blanks aren't kept. The dashboard
+    Photo Gallery queries this table, sorts by ``taken_at`` desc, and
+    generates short-lived presigned Spaces GET URLs at request time.
+
+    Independence is resolved per-camera per-species: a sequence of
+    triggers on the same camera of the same species within 30 min
+    shares an ``independent_event_id``.
+    """
+    __tablename__ = "photos"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    property_id = db.Column(
+        db.Integer, db.ForeignKey("properties.id"),
+        nullable=False, index=True,
+    )
+    camera_id = db.Column(
+        db.Integer, db.ForeignKey("cameras.id"),
+        nullable=True, index=True,
+    )
+    season_id = db.Column(
+        db.Integer, db.ForeignKey("seasons.id"),
+        nullable=True, index=True,
+    )
+    # Links back to the ProcessingJob that created this row. Useful
+    # for "delete all photos from that upload" flows later.
+    processing_job_id = db.Column(db.String(8))
+    # S3/Spaces object key. UNIQUE so re-ingesting the same ZIP is
+    # idempotent (worker upserts on this column).
+    spaces_key = db.Column(db.String(500), nullable=False, unique=True)
+    original_name = db.Column(db.String(500))
+    species_key = db.Column(db.String(200), index=True)
+    common_name = db.Column(db.String(200))
+    confidence = db.Column(db.Float)
+    independent_event_id = db.Column(db.String(32))
+    review_required = db.Column(db.Boolean, default=False)
+    # JSON array of MegaDetector bboxes (for later Re-ID work).
+    bbox_json = db.Column(db.Text)
+    taken_at = db.Column(db.DateTime)   # EXIF DateTimeOriginal
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Photo {self.id} {self.species_key} @ {self.taken_at}>"
+
+
 class DeerIndividual(db.Model):
     """A recognized individual deer tracked via re-identification."""
     __tablename__ = "deer_individuals"
