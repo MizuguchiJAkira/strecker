@@ -314,10 +314,12 @@ def create_app(demo: bool = False, site: str = "strecker") -> Flask:
         if override in ("basal", "strecker"):
             return override
         host = (request.host or "").lower().split(":")[0]
+        # Strecker matches FIRST — "strecker.basal.eco" also endswith
+        # "basal.eco", but we want the more specific prefix to win.
+        if host.startswith("strecker.") or ".strecker." in host or host == "strecker":
+            return "strecker"
         if host.endswith("basal.eco") or host.endswith("basalinformatics.com"):
             return "basal"
-        if host.startswith("strecker.") or ".strecker." in host:
-            return "strecker"
         return app.config.get("DEFAULT_SITE", "strecker")
 
     app.active_site = active_site  # expose for views that need it
