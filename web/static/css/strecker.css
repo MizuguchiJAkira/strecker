@@ -1,0 +1,443 @@
+/* strecker.css — hunter-facing design system.
+ *
+ * Deliberately unlike basal.css. Where Basal is editorial (Fraunces /
+ * Inter / white paper / forest-lit), Strecker is field-operational —
+ * Oswald condensed display + IBM Plex Sans body + Share Tech Mono
+ * data, deep forest / olive / hunter-blaze palette, HUD corner
+ * brackets, trail-cam timestamp overlays. Someone looking at both
+ * sites should not connect them.
+ *
+ * Scope: everything in the file is gated behind `body.strecker` so it
+ * never leaks into the basal site (which shares base.html).
+ *
+ * Typography: Oswald / IBM Plex Sans / Share Tech Mono (loaded from
+ * Google Fonts in base.html when site == 'strecker').
+ */
+
+/* ────────────────────────────────────────────────────────────────
+ * Design tokens
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker {
+  /* Surfaces */
+  --s-ink:          #0d1410;   /* deep forest near-black, page */
+  --s-bark:         #161f18;   /* elevated cards */
+  --s-bark-lift:   #1d271f;   /* hover / selected */
+  --s-rule:         #283328;   /* hairlines */
+  --s-rule-strong: #3a4a3b;   /* heavier dividers */
+
+  /* Ink (text) */
+  --s-canvas:       #e8e4d4;   /* primary text, warm off-white */
+  --s-canvas-dim:  #9e9a87;   /* secondary */
+  --s-canvas-mute: #6b6a5d;   /* tertiary / captions */
+
+  /* Accents */
+  --s-moss:         #5d7043;   /* olive, secondary data */
+  --s-moss-deep:    #415030;
+  --s-blaze:        #e0652a;   /* hunter orange, primary CTA */
+  --s-blaze-deep:   #b04d1d;   /* hover */
+  --s-blaze-dim:    #6b3818;   /* subdued CTA background */
+  --s-ir:           #76c88a;   /* IR trail-cam green, live/active */
+  --s-ir-dim:       #3a6d48;
+  --s-amber:        #c59739;   /* amber, warnings */
+  --s-earth:        #7a3a28;   /* earth red, critical */
+
+  /* Fonts */
+  --s-display: "Oswald", "Impact", sans-serif;
+  --s-body:    "IBM Plex Sans", "Helvetica Neue", sans-serif;
+  --s-mono:    "Share Tech Mono", "Consolas", monospace;
+
+  /* Shape */
+  --s-radius-sm:  2px;
+  --s-radius:     4px;
+  --s-radius-lg:  6px;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Page shell
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker {
+  background: var(--s-ink);
+  color: var(--s-canvas);
+  font-family: var(--s-body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+body.strecker * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle topographic grid on the page background — barely visible,
+   gives the canvas a field-map texture without becoming distracting. */
+body.strecker::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(to right,  rgba(93,112,67,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(93,112,67,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  pointer-events: none;
+  z-index: 0;
+}
+body.strecker > * { position: relative; z-index: 1; }
+
+/* ────────────────────────────────────────────────────────────────
+ * Nav / header — tactical bar
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker header {
+  background: var(--s-ink);
+  border-bottom: 1px solid var(--s-rule-strong);
+  position: relative;
+}
+body.strecker header::after {
+  /* IR-green tracer line under the nav */
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(to right,
+    transparent, var(--s-ir-dim) 20%, var(--s-ir-dim) 80%, transparent);
+  opacity: 0.6;
+}
+
+body.strecker header a[href="/"] {
+  font-family: var(--s-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-canvas);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+body.strecker header a[href="/"]::before {
+  /* Crosshair mark — SVG via mask so it inherits currentColor */
+  content: "";
+  width: 20px; height: 20px;
+  display: inline-block;
+  background-color: var(--s-ir);
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='12' cy='12' r='2' fill='currentColor'/><line x1='12' y1='2' x2='12' y2='6' stroke='currentColor' stroke-width='1.5'/><line x1='12' y1='18' x2='12' y2='22' stroke='currentColor' stroke-width='1.5'/><line x1='2' y1='12' x2='6' y2='12' stroke='currentColor' stroke-width='1.5'/><line x1='18' y1='12' x2='22' y2='12' stroke='currentColor' stroke-width='1.5'/></svg>") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='12' cy='12' r='2' fill='currentColor'/><line x1='12' y1='2' x2='12' y2='6' stroke='currentColor' stroke-width='1.5'/><line x1='12' y1='18' x2='12' y2='22' stroke='currentColor' stroke-width='1.5'/><line x1='2' y1='12' x2='6' y2='12' stroke='currentColor' stroke-width='1.5'/><line x1='18' y1='12' x2='22' y2='12' stroke='currentColor' stroke-width='1.5'/></svg>") center/contain no-repeat;
+}
+
+body.strecker header nav a {
+  font-family: var(--s-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--s-canvas-dim);
+  transition: color 0.15s;
+}
+body.strecker header nav a:hover { color: var(--s-ir); }
+
+body.strecker #dark-toggle,
+body.strecker button[onclick*="toggleDarkMode"] {
+  display: none !important;   /* Strecker is always dark-field */
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Typography
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker h1, body.strecker h2, body.strecker h3 {
+  font-family: var(--s-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--s-canvas);
+}
+body.strecker h1 {
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+body.strecker h2 {
+  font-size: 22px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+body.strecker h3 {
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+body.strecker .mono, body.strecker code, body.strecker pre {
+  font-family: var(--s-mono);
+}
+
+/* Restyle Tailwind typography utility classes that templates rely on */
+body.strecker .text-slate-700,
+body.strecker .dark .text-gray-100,
+body.strecker .text-gray-100 {
+  color: var(--s-canvas);
+}
+body.strecker .text-slate-500,
+body.strecker .text-slate-400,
+body.strecker .dark .text-gray-400,
+body.strecker .text-gray-400,
+body.strecker .dark .text-gray-300,
+body.strecker .text-gray-300 {
+  color: var(--s-canvas-dim);
+}
+body.strecker .text-teal-600 {
+  color: var(--s-ir);
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Panels / cards — HUD corner brackets
+ *
+ * Any template card using the Tailwind shape
+ *   "bg-white dark:bg-gray-800 border ... rounded-lg"
+ * gets restyled to a bark panel with olive corner brackets.
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker .bg-white,
+body.strecker .dark .bg-gray-800,
+body.strecker .bg-gray-800,
+body.strecker .bg-gray-50,
+body.strecker .dark .bg-gray-900 {
+  background: var(--s-bark) !important;
+}
+
+body.strecker .border-gray-200,
+body.strecker .dark .border-gray-700,
+body.strecker .border-gray-700,
+body.strecker .border-gray-100,
+body.strecker .dark .border-gray-800 {
+  border-color: var(--s-rule) !important;
+}
+
+body.strecker .rounded-lg,
+body.strecker .rounded-xl,
+body.strecker .rounded-2xl { border-radius: var(--s-radius) !important; }
+
+body.strecker .shadow,
+body.strecker .shadow-sm,
+body.strecker .shadow-md,
+body.strecker .hover\:shadow-md:hover { box-shadow: none !important; }
+
+/* Corner brackets on any element that carries the .hud-panel class.
+   Applied in base.html template where card-like boxes live. */
+body.strecker .hud-panel {
+  position: relative;
+  background: var(--s-bark);
+  border: 1px solid var(--s-rule);
+  padding: 20px;
+}
+body.strecker .hud-panel::before,
+body.strecker .hud-panel::after,
+body.strecker .hud-panel > .hud-corner-tr,
+body.strecker .hud-panel > .hud-corner-br {
+  content: "";
+  position: absolute;
+  width: 10px; height: 10px;
+  border-color: var(--s-ir);
+  pointer-events: none;
+}
+body.strecker .hud-panel::before { /* top-left */
+  top: -1px; left: -1px;
+  border-top: 1.5px solid; border-left: 1.5px solid;
+}
+body.strecker .hud-panel::after {  /* bottom-left */
+  bottom: -1px; left: -1px;
+  border-bottom: 1.5px solid; border-left: 1.5px solid;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Buttons / CTAs
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker .bg-teal-600,
+body.strecker .hover\:bg-teal-700:hover {
+  background: var(--s-blaze) !important;
+  color: var(--s-canvas) !important;
+}
+body.strecker .bg-teal-600 {
+  border-radius: var(--s-radius-sm) !important;
+  font-family: var(--s-mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--s-blaze-deep);
+  transition: all 0.15s;
+}
+body.strecker .bg-teal-600:hover {
+  background: var(--s-blaze-deep) !important;
+  box-shadow: 0 0 12px -2px var(--s-blaze);
+}
+
+body.strecker .border-teal-600,
+body.strecker .text-teal-600.border {
+  border-color: var(--s-ir) !important;
+  color: var(--s-ir) !important;
+}
+
+/* Inline link-style CTAs (Dashboard → etc.) */
+body.strecker a.text-teal-600,
+body.strecker .text-teal-600 {
+  font-family: var(--s-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Form inputs
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker input[type="text"],
+body.strecker input[type="email"],
+body.strecker input[type="password"],
+body.strecker input[type="number"],
+body.strecker input[type="search"],
+body.strecker input[type="url"],
+body.strecker input[type="tel"],
+body.strecker input[type="date"],
+body.strecker textarea,
+body.strecker select {
+  background: var(--s-ink) !important;
+  color: var(--s-canvas) !important;
+  border: 1px solid var(--s-rule-strong) !important;
+  border-radius: var(--s-radius-sm) !important;
+  font-family: var(--s-mono) !important;
+  font-size: 13px !important;
+}
+body.strecker input::placeholder,
+body.strecker textarea::placeholder {
+  color: var(--s-canvas-mute) !important;
+  font-family: var(--s-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+body.strecker input:focus,
+body.strecker textarea:focus,
+body.strecker select:focus {
+  outline: none !important;
+  border-color: var(--s-ir) !important;
+  box-shadow: 0 0 0 1px var(--s-ir) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Dashboard — stat tiles + species cards
+ * ──────────────────────────────────────────────────────────────── */
+
+/* Large stat numerals — display face, IR-green */
+body.strecker .text-2xl,
+body.strecker .text-3xl,
+body.strecker .text-4xl {
+  font-family: var(--s-display);
+  letter-spacing: 0.02em;
+}
+
+/* Stat labels in mono caps */
+body.strecker .text-xs.text-slate-500,
+body.strecker .text-xs.text-gray-400,
+body.strecker .text-sm.text-slate-500 {
+  font-family: var(--s-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+/* Badges (nocturnal/crepuscular/diurnal / recommend survey / etc.) —
+   make them tactical labels instead of rounded pills. */
+body.strecker .rounded-full.bg-yellow-100,
+body.strecker .rounded-full.bg-red-100,
+body.strecker .rounded-full.bg-green-100,
+body.strecker .bg-amber-100, body.strecker .bg-orange-100 {
+  border-radius: var(--s-radius-sm) !important;
+  background: transparent !important;
+  border: 1px solid var(--s-amber) !important;
+  color: var(--s-amber) !important;
+  font-family: var(--s-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+body.strecker .rounded-full.bg-red-100,
+body.strecker .bg-red-100 { border-color: var(--s-earth) !important; color: #d47a63 !important; }
+body.strecker .rounded-full.bg-green-100,
+body.strecker .bg-green-100 { border-color: var(--s-ir-dim) !important; color: var(--s-ir) !important; }
+
+/* ────────────────────────────────────────────────────────────────
+ * Hero / landing — trail-cam HUD overlay stays, typography shifts
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker .hero-title,
+body.strecker h1.hero {
+  font-family: var(--s-display);
+  font-weight: 700;
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--s-canvas);
+}
+
+/* Hero fade — home.html's template toggles between a dark-fade and
+   a light-fade based on the `html.dark` class. Strecker doesn't use
+   that class (we're dark-always), so force the dark fade to show and
+   the light fade to stay hidden regardless of the toggle state. */
+body.strecker .hero-fade-light { display: none !important; }
+body.strecker .hero-fade-dark {
+  display: block !important;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(13,20,16,0.55) 45%,
+    var(--s-ink) 100%) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Footer
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker footer {
+  background: var(--s-ink);
+  border-top: 1px solid var(--s-rule);
+  color: var(--s-canvas-mute);
+  font-family: var(--s-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 18px 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Utility classes referenced from templates
+ * ──────────────────────────────────────────────────────────────── */
+
+body.strecker .s-stencil {
+  font-family: var(--s-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+body.strecker .s-meta {
+  font-family: var(--s-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--s-canvas-dim);
+}
+body.strecker .s-tracer {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--s-ir);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--s-ir);
+  animation: s-pulse 2s ease-in-out infinite;
+}
+@keyframes s-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1;   }
+}

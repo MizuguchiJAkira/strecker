@@ -40,10 +40,10 @@
         z-index: 4;
     }
     .hero-fade-dark {
-        background: linear-gradient(to bottom, transparent 0%, rgba(27,25,23,0.5) 45%, #1B1917 100%);
+        background: linear-gradient(to bottom, transparent 0%, rgba(13,20,16,0.5) 45%, #0d1410 100%);
     }
     .hero-fade-light {
-        background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.5) 45%, #ffffff 100%);
+        background: linear-gradient(to bottom, transparent 0%, rgba(13,20,16,0.5) 45%, #0d1410 100%);
     }
 
     /* Trail cam HUD overlay */
@@ -110,14 +110,14 @@
     <!-- Text overlay -->
     <div class="hero-overlay">
         <div class="hero-overlay-inner">
-            <h1 class="text-4xl md:text-5xl font-bold text-white leading-tight mb-5" style="text-shadow: 0 2px 20px rgba(0,0,0,0.7);">
+            <h1 class="hero-title" style="text-shadow: 0 2px 20px rgba(0,0,0,0.7); font-family: Oswald, sans-serif; text-transform: uppercase; font-weight: 700; font-size: clamp(44px, 6vw, 76px); line-height: 0.95; letter-spacing: 0.01em; color: #e8e4d4; margin-bottom: 20px;">
                 Know your land.<br>
-                <span class="text-teal-400">Track what moves on it.</span>
+                <span style="color: #76c88a;">Track what moves on it.</span>
             </h1>
-            <p class="text-base md:text-lg text-gray-200 mb-8 max-w-xl leading-relaxed" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6);">
+            <p class="text-base md:text-lg mb-8 max-w-xl leading-relaxed" style="text-shadow: 0 1px 8px rgba(0,0,0,0.6); color: #c8c4b4; font-family: 'IBM Plex Sans', sans-serif;">
                 Strecker turns trail camera photos into actionable wildlife data.
                 Upload your SD card, get species inventories, activity patterns,
-                per-species <strong class="text-teal-400">density estimates with confidence
+                per-species <strong style="color: #76c88a;">density estimates with confidence
                 intervals</strong>, and individual deer tracking &mdash; all from your browser.
             </p>
             <div class="flex flex-wrap gap-4">
@@ -129,8 +129,9 @@
                     Go to My Properties
                 </a>
                 <a href="/properties/new"
-                   class="inline-flex items-center gap-2 border border-white/40 text-white hover:border-teal-400 hover:text-teal-400 px-6 py-3 rounded-lg text-sm font-semibold transition">
-                    + Add a Property
+                   class="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition"
+                   style="border: 1px solid rgba(232,228,212,0.4); color: #e8e4d4; border-radius: 2px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;">
+                    + New Property
                 </a>
             </div>
         </div>

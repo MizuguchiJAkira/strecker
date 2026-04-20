@@ -6,9 +6,16 @@
     <title>{% block title %}{{ brand_name }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    {% if is_basal_site %}
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/basal.css') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='marketing/basal-mark.svg') }}">
+    {% else %}
+    {# Strecker — hunter-facing "field HUD" stack. Different fonts,
+       different palette, different visual grammar from Basal. #}
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Share+Tech+Mono&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/strecker.css') }}">
+    {% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -79,7 +86,7 @@
         }
     </style>
 </head>
-<body class="bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200{% if not is_basal_site %} strecker{% endif %}">
     <!-- Header -->
     {% if request.args.get('embed') != '1' %}
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 relative z-50">
