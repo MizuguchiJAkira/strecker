@@ -1,379 +1,470 @@
 {% extends "base.html" %}
-{% block title %}Strecker — a field journal for your land{% endblock %}
+{% block title %}Strecker — know what walks your land{% endblock %}
 
 {% block content %}
 <style>
-    /* Page-local tuning for the landing. All tokens come from
-       strecker.css; this just controls the layout of this page. */
-    .j-page { max-width: 880px; margin: 0 auto; padding: 0 32px; }
+  /* Page-local layout. Design tokens come from strecker.css. */
 
-    .j-masthead {
-      padding: 72px 0 36px;
-      border-bottom: 1px solid var(--j-rule-ink);
-      margin-bottom: 48px;
-      position: relative;
-    }
-    .j-masthead-eyebrow {
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.22em;
-      font-size: 13px;
-      color: var(--j-ink-mute);
-      margin-bottom: 28px;
-    }
-    .j-masthead h1 {
-      font-size: clamp(52px, 7vw, 88px);
-      font-style: italic;
-      font-weight: 400;
-      line-height: 0.98;
-      letter-spacing: -0.02em;
-      margin: 0 0 18px;
-      color: var(--j-ink);
-    }
-    .j-masthead .lede {
-      font-size: 20px;
-      line-height: 1.5;
-      font-style: italic;
-      color: var(--j-ink-soft);
-      max-width: 42em;
-      margin: 0;
-    }
+  .h-wrap { width: 100%; }
+  .h-inner { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
 
-    /* Decorative folio number, top right, like a book page */
-    .j-folio {
-      position: absolute;
-      top: 72px;
-      right: 0;
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.2em;
-      font-size: 12px;
-      color: var(--j-ink-mute);
-      text-align: right;
-      line-height: 1.5;
-    }
-    .j-folio .num { display: block; font-size: 36px; color: var(--j-loam); font-style: italic; letter-spacing: 0; margin-bottom: -4px; }
+  /* ── Hero ─────────────────────────────────────────────────── */
+  .h-hero {
+    position: relative;
+    width: 100%;
+    min-height: 78vh;
+    background-image:
+      linear-gradient(180deg, rgba(28,27,24,0.15) 0%, rgba(28,27,24,0.55) 60%, rgba(28,27,24,0.82) 100%),
+      url("{{ url_for('static', filename='marketing/journal/plate-01-buck.jpg') }}");
+    background-size: cover;
+    background-position: center 32%;
+    color: var(--s-ink-inv);
+    display: flex;
+    align-items: flex-end;
+  }
+  .h-hero-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 28px 56px;
+    width: 100%;
+  }
+  .h-hero-kicker {
+    font-family: var(--s-disp);
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: 12px;
+    color: var(--s-kraft);
+    margin-bottom: 16px;
+  }
+  .h-hero-kicker .dot { color: var(--s-clay); margin: 0 10px; }
+  .h-hero h1 {
+    font-family: var(--s-disp);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 0.92;
+    font-size: clamp(52px, 10vw, 124px);
+    margin: 0 0 14px;
+    color: #fff;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+  .h-hero h1 em {
+    font-style: normal;
+    color: var(--s-kraft);
+  }
+  .h-hero .lede {
+    font-family: var(--s-sans);
+    font-size: 19px;
+    line-height: 1.45;
+    max-width: 52ch;
+    color: rgba(255,255,255,0.92);
+    margin: 0 0 26px;
+  }
+  .h-hero-cta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
 
-    .j-section { margin: 56px 0; }
-    .j-section-title {
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.22em;
-      font-size: 14px;
-      color: var(--j-loam);
-      border-bottom: 1px solid var(--j-rule-ink);
-      padding-bottom: 6px;
-      margin-bottom: 28px;
-    }
+  /* Dark stat strip under the hero */
+  .h-stats {
+    background: var(--s-char);
+    color: var(--s-ink-inv);
+    border-top: 3px solid var(--s-clay);
+  }
+  .h-stats-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 28px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+  }
+  .h-stat { border-left: 2px solid var(--s-kraft); padding-left: 16px; }
+  .h-stat .num {
+    font-family: var(--s-disp);
+    font-weight: 700;
+    font-size: 40px;
+    line-height: 1;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .h-stat .lbl {
+    font-family: var(--s-disp);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 11px;
+    color: var(--s-kraft);
+  }
 
-    /* Log entries — chronological, literary, journal-style */
-    .j-log { }
-    .j-entry {
-      display: grid;
-      grid-template-columns: 140px 1fr;
-      gap: 36px;
-      padding: 28px 0;
-      border-top: 1px solid var(--j-rule);
-    }
-    .j-entry:first-child { border-top: none; padding-top: 0; }
-    .j-entry-date {
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.18em;
-      font-size: 13px;
-      color: var(--j-ink-mute);
-      padding-top: 4px;
-    }
-    .j-entry-date .day {
-      font-variant-caps: normal;
-      letter-spacing: 0;
-      font-size: 34px;
-      font-style: italic;
-      color: var(--j-ink);
-      line-height: 1;
-      display: block;
-      margin-bottom: 4px;
-    }
-    .j-entry-body h3 {
-      font-style: italic;
-      font-weight: 400;
-      font-size: 22px;
-      margin: 0 0 8px;
-      color: var(--j-ink);
-    }
-    .j-entry-body p { margin: 8px 0; font-size: 16px; }
-    .j-entry-meta {
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.14em;
-      font-size: 12px;
-      color: var(--j-ink-mute);
-      margin-top: 10px;
-      line-height: 1.7;
-    }
-    .j-entry-meta .dot { margin: 0 8px; opacity: 0.5; }
+  /* ── Section scaffolding ──────────────────────────────────── */
+  .h-section { padding: 96px 0; }
+  .h-section--dark {
+    background: var(--s-char);
+    color: var(--s-ink-inv);
+  }
+  .h-section--dark .h-section-title { color: #fff; }
+  .h-section--dark .h-section-kicker { color: var(--s-kraft); }
+  .h-section--dark .h-prose { color: rgba(255,255,255,0.88); }
 
-    .j-plate-wrap {
-      margin-top: 14px;
-      max-width: 520px;
-    }
-    .j-plate-wrap img {
-      width: 100%;
-      height: auto;
-      display: block;
-      filter: sepia(0.18) saturate(0.75) contrast(1.02);
-    }
+  .h-section-kicker {
+    font-family: var(--s-disp);
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: 12px;
+    color: var(--s-clay);
+    margin-bottom: 14px;
+  }
+  .h-section-title {
+    font-family: var(--s-disp);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 0.96;
+    font-size: clamp(36px, 5vw, 64px);
+    margin: 0 0 28px;
+    max-width: 22ch;
+  }
+  .h-prose {
+    font-size: 18px;
+    line-height: 1.55;
+    max-width: 62ch;
+    color: var(--s-ink-soft);
+  }
 
-    /* Three-column pillar list — how the pipeline works */
-    .j-pillars {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 36px;
-      margin: 32px 0;
-    }
-    @media (max-width: 760px) {
-      .j-pillars { grid-template-columns: 1fr; gap: 28px; }
-      .j-entry { grid-template-columns: 1fr; gap: 10px; }
-    }
-    .j-pillar h3 {
-      font-size: 17px;
-      font-style: italic;
-      font-weight: 500;
-      margin: 0 0 8px;
-    }
-    .j-pillar .numeral {
-      font-variant-caps: small-caps;
-      color: var(--j-loam);
-      letter-spacing: 0.18em;
-      font-size: 12px;
-      margin-bottom: 8px;
-    }
-    .j-pillar p { font-size: 15px; line-height: 1.55; }
+  /* ── How it works — numbered steps ────────────────────────── */
+  .h-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 36px;
+    margin-top: 48px;
+  }
+  .h-step {
+    border-top: 2px solid var(--s-ink);
+    padding-top: 22px;
+  }
+  .h-step-num {
+    font-family: var(--s-disp);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    color: var(--s-clay);
+    margin-bottom: 10px;
+  }
+  .h-step h3 {
+    font-family: var(--s-disp);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 22px;
+    margin: 0 0 10px;
+    color: var(--s-ink);
+  }
+  .h-step p {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--s-ink-soft);
+    margin: 0;
+  }
 
-    /* CTA row — quiet, like a book's colophon link */
-    .j-cta-row {
-      display: flex;
-      gap: 22px;
-      margin-top: 32px;
-      align-items: baseline;
-      flex-wrap: wrap;
-    }
-    .j-cta-primary {
-      color: var(--j-paper) !important;
-      background: var(--j-pine);
-      padding: 12px 22px;
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.16em;
-      font-size: 14px;
-      text-decoration: none;
-      border: 1px solid var(--j-pine);
-      transition: background 0.15s;
-    }
-    .j-cta-primary:hover { background: var(--j-pine-lift); color: var(--j-paper) !important; }
-    .j-cta-secondary {
-      color: var(--j-loam);
-      font-style: italic;
-      font-size: 16px;
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 4px;
-      text-decoration-color: rgba(110,75,34,0.45);
-    }
+  /* ── Species gallery ──────────────────────────────────────── */
+  .h-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+  }
+  .h-card {
+    background: var(--s-char-2);
+    color: var(--s-ink-inv);
+    position: relative;
+    overflow: hidden;
+  }
+  .h-card-img {
+    aspect-ratio: 4/3;
+    background-size: cover;
+    background-position: center;
+    filter: saturate(1.05) contrast(1.05);
+  }
+  .h-card-body { padding: 22px 22px 26px; }
+  .h-card .sci {
+    font-family: var(--s-sans);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: var(--s-kraft);
+    margin-bottom: 4px;
+  }
+  .h-card h3 {
+    font-family: var(--s-disp);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 22px;
+    margin: 0 0 12px;
+    color: #fff;
+  }
+  .h-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    font-size: 13px;
+    margin: 0;
+  }
+  .h-card dt {
+    font-family: var(--s-disp);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--s-kraft);
+    font-size: 11px;
+    align-self: center;
+  }
+  .h-card dd {
+    font-family: var(--s-mono);
+    color: #fff;
+    margin: 0;
+    font-size: 13px;
+  }
 
-    /* Ornamental fleuron divider, used between sections */
-    .j-fleuron {
-      text-align: center;
-      font-size: 20px;
-      color: var(--j-loam);
-      letter-spacing: 0.8em;
-      margin: 72px 0;
-      font-style: italic;
-    }
+  /* ── Quote / testimonial-ish ──────────────────────────────── */
+  .h-pullquote {
+    border-left: 4px solid var(--s-clay);
+    padding: 4px 0 4px 24px;
+    margin: 48px 0 0;
+    font-family: var(--s-sans);
+    font-size: 22px;
+    line-height: 1.4;
+    font-weight: 500;
+    max-width: 34em;
+    color: var(--s-ink);
+  }
+  .h-pullquote cite {
+    display: block;
+    margin-top: 14px;
+    font-family: var(--s-disp);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 11px;
+    font-style: normal;
+    color: var(--s-ink-mute);
+  }
 
-    /* Methodology footnote — marginalia style */
-    .j-footnote {
-      border-left: 2px solid var(--j-loam);
-      padding: 4px 0 4px 18px;
-      margin: 28px 0;
-      font-style: italic;
-      font-size: 15px;
-      color: var(--j-ink-soft);
-      line-height: 1.55;
-    }
-    .j-footnote cite {
-      display: block;
-      margin-top: 6px;
-      font-style: normal;
-      font-variant-caps: all-small-caps;
-      letter-spacing: 0.14em;
-      font-size: 12px;
-      color: var(--j-ink-mute);
-    }
+  /* ── Closing CTA band with full-bleed photo ───────────────── */
+  .h-cta {
+    position: relative;
+    background-image:
+      linear-gradient(90deg, rgba(28,27,24,0.88) 0%, rgba(28,27,24,0.62) 60%, rgba(28,27,24,0.35) 100%),
+      url("{{ url_for('static', filename='marketing/journal/plate-03-bear.jpg') }}");
+    background-size: cover;
+    background-position: center;
+    color: var(--s-ink-inv);
+    padding: 120px 0;
+  }
+  .h-cta-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+  .h-cta h2 {
+    font-family: var(--s-disp);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 0.96;
+    font-size: clamp(36px, 5vw, 64px);
+    max-width: 16ch;
+    color: #fff;
+    margin: 0 0 18px;
+  }
+  .h-cta p {
+    font-size: 18px;
+    line-height: 1.5;
+    max-width: 44ch;
+    color: rgba(255,255,255,0.9);
+    margin: 0 0 28px;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .h-stats-inner { grid-template-columns: repeat(2, 1fr); }
+    .h-steps { grid-template-columns: 1fr; gap: 28px; }
+    .h-gallery { grid-template-columns: 1fr; }
+    .h-hero { min-height: 68vh; }
+    .h-section { padding: 64px 0; }
+    .h-cta { padding: 80px 0; }
+  }
 </style>
 
-<div class="j-page">
+<div class="h-wrap h-fullbleed">
 
-  <!-- ─── Masthead ─── -->
-  <section class="j-masthead">
-    <div class="j-masthead-eyebrow">A field journal for your land</div>
-    <h1>Keep an honest account<br>of what lives here.</h1>
-    <p class="lede">
-      Upload your trail-cam card. Strecker logs every appearance —
-      by species, by station, by hour — into a running record you
-      can read like a diary and cite like data.
-    </p>
-
-    <div class="j-folio">
-      <span>Vol. I</span>
-      <span class="num">2026</span>
-      <span>The Plateau</span>
+  <!-- ─── Hero ─── -->
+  <section class="h-hero">
+    <div class="h-hero-inner">
+      <div class="h-hero-kicker">
+        Trail-cam logbook <span class="dot">•</span> Texas-made
+      </div>
+      <h1>Know what<br>walks <em>your</em> land.</h1>
+      <p class="lede">
+        Pull the card. Drop the photos in. Strecker sorts every frame
+        by species, station, and hour — so you stop guessing what's
+        out there and start running your property on what's actually
+        showing up.
+      </p>
+      <div class="h-hero-cta">
+        <a href="/properties" class="s-btn s-btn--blaze">Open your logbook</a>
+        <a href="/properties/new" class="s-btn s-btn--ghost" style="color:#fff !important; border-color:rgba(255,255,255,0.7);">
+          Register a property
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- ─── What happens ─── -->
-  <section class="j-section">
-    <div class="j-section-title">What the journal keeps</div>
-
-    <div class="j-pillars">
-      <div class="j-pillar">
-        <div class="numeral">i.</div>
-        <h3>A species inventory.</h3>
-        <p>
-          MegaDetector and SpeciesNet read every photo;
-          independent-event rules collapse bursts; the result is a
-          season-level list of every animal that used your land and
-          how often.
-        </p>
+  <!-- ─── Stat strip ─── -->
+  <section class="h-stats">
+    <div class="h-stats-inner">
+      <div class="h-stat">
+        <div class="num">1,427</div>
+        <div class="lbl">Photos last card</div>
       </div>
-      <div class="j-pillar">
-        <div class="numeral">ii.</div>
-        <h3>A density estimate, with a confidence interval.</h3>
-        <p>
-          The Random Encounter Model (Rowcliffe 2008) converts
-          detections into animals per square kilometre; a bootstrap
-          over 1,000 resamples gives you the 95% CI, not a point
-          guess.
-        </p>
+      <div class="h-stat">
+        <div class="num">11</div>
+        <div class="lbl">Species logged</div>
       </div>
-      <div class="j-pillar">
-        <div class="numeral">iii.</div>
-        <h3>An activity pattern, by hour.</h3>
-        <p>
-          Hourly event counts per species. You see at a glance when
-          your deer move, when your hogs feed, when the cats are
-          active — and whether that shifts across the season.
-        </p>
+      <div class="h-stat">
+        <div class="num">6</div>
+        <div class="lbl">Stations active</div>
       </div>
-    </div>
-
-    <div class="j-cta-row">
-      <a href="/properties" class="j-cta-primary">Open the journal</a>
-      <a href="/properties/new" class="j-cta-secondary">Or register a new property →</a>
+      <div class="h-stat">
+        <div class="num">30&thinsp;min</div>
+        <div class="lbl">Event window</div>
+      </div>
     </div>
   </section>
 
-  <div class="j-fleuron">❦</div>
+  <!-- ─── How it works ─── -->
+  <section class="h-section">
+    <div class="h-inner">
+      <div class="h-section-kicker">How it works</div>
+      <h2 class="h-section-title">Four nights a season. The rest runs itself.</h2>
+      <p class="h-prose">
+        You already run cameras. Strecker is the part that happens
+        after the card comes back to the truck — sorting, counting,
+        and keeping the record so you can actually use it next year.
+      </p>
 
-  <!-- ─── A page from an actual journal ─── -->
-  <section class="j-section">
-    <div class="j-section-title">A page from the record</div>
-
-    <div class="j-log">
-
-      <article class="j-entry">
-        <div class="j-entry-date">
-          <span class="day">31</span>
-          Aug 2025
-          <br>04:17
-        </div>
-        <div class="j-entry-body">
-          <h3><span class="j-species">Odocoileus virginianus</span> — mature 10-point buck</h3>
+      <div class="h-steps">
+        <div class="h-step">
+          <div class="h-step-num">01 / Pull the card</div>
+          <h3>Drop the photos in</h3>
           <p>
-            First appearance of the season at the Crooked Well feeder.
-            Mature, in velvet nearly gone. Weather: dry, wind
-            southeast at 4 knots. Alone. Held at the feeder approximately
-            eleven minutes before moving east along the fence line.
+            SD card, phone, drag-and-drop — any camera brand.
+            EXIF timestamps and station come along with the photos.
           </p>
-          <p class="j-entry-meta">
-            Cam-CW-02 <span class="dot">·</span> FEEDER
-            <span class="dot">·</span> 14.2 MB <span class="dot">·</span> Muddy MTC14
-          </p>
-          <div class="j-plate-wrap">
-            <img src="{{ url_for('static', filename='marketing/journal/plate-01-buck.jpg') }}"
-                 alt="Ten-point whitetail buck at Crooked Well feeder, 31 August 2025" />
-          </div>
         </div>
-      </article>
-
-      <article class="j-entry">
-        <div class="j-entry-date">
-          <span class="day">24</span>
-          Jun 2025
-          <br>01:38
-        </div>
-        <div class="j-entry-body">
-          <h3><span class="j-species">Sus scrofa</span> — boar, est. 280 lb</h3>
+        <div class="h-step">
+          <div class="h-step-num">02 / The sort</div>
+          <h3>Every frame, by species</h3>
           <p>
-            Large solitary boar at Goldilocks trail. Movement pattern
-            consistent with established resident. Rooting damage
-            visible in earlier-season footage along the same corridor;
-            IPW-adjusted density estimate this season: 6.1 / km²
-            <span style="font-style: italic;">(95% CI 3.2&thinsp;–&thinsp;11.4).</span>
+            Two trained detectors (MegaDetector + SpeciesNet) read
+            every photo. Triggers from the same animal inside
+            30 minutes collapse into one event, so a buck standing
+            at the feeder doesn't count as forty deer.
           </p>
-          <p class="j-entry-meta">
-            Cam-MH-01 <span class="dot">·</span> TRAIL
-            <span class="dot">·</span> 7.8 MB <span class="dot">·</span> Moultrie AC-40
-          </p>
-          <div class="j-plate-wrap">
-            <img src="{{ url_for('static', filename='marketing/journal/plate-02-hog.jpg') }}"
-                 alt="Feral hog boar, Goldilocks trail crossing, 24 June 2025" />
-          </div>
         </div>
-      </article>
-
-      <article class="j-entry">
-        <div class="j-entry-date">
-          <span class="day">17</span>
-          Oct 2025
-          <br>22:51
-        </div>
-        <div class="j-entry-body">
-          <h3><span class="j-species">Ursus americanus</span> — adult black bear</h3>
+        <div class="h-step">
+          <div class="h-step-num">03 / The record</div>
+          <h3>A logbook you'll actually open</h3>
           <p>
-            Crossing the ridge fifty yards east of Crooked Well. Fall
-            foraging window; likely staging for den-up within two
-            weeks. Photographed twice more along the same transect in
-            the 96 hours following.
+            Species list. Activity by hour. Per-station tallies.
+            Photos indexed so you can pull up every bear sighting
+            at Crooked Well in October with one click.
           </p>
-          <p class="j-entry-meta">
-            Cam-CW-04 <span class="dot">·</span> RIDGE
-            <span class="dot">·</span> 9.6 MB <span class="dot">·</span> Stealth Cam QS
-          </p>
-          <div class="j-plate-wrap">
-            <img src="{{ url_for('static', filename='marketing/journal/plate-03-bear.jpg') }}"
-                 alt="Black bear crossing the Crooked Well ridge, 17 October 2025" />
-          </div>
         </div>
-      </article>
-
+      </div>
     </div>
   </section>
 
-  <div class="j-fleuron">❦</div>
+  <!-- ─── What the logbook looks like (gallery) ─── -->
+  <section class="h-section h-section--dark">
+    <div class="h-inner">
+      <div class="h-section-kicker">A page from last season</div>
+      <h2 class="h-section-title">Straight read. Nothing dressed up.</h2>
+      <p class="h-prose" style="max-width: 56ch;">
+        Three entries from a working Texas property. Each record
+        ties back to the exact photo, the exact station, the exact
+        minute — no averages, no aggregates.
+      </p>
 
-  <!-- ─── Methodology marginal note ─── -->
-  <section class="j-section">
-    <div class="j-section-title">Methods</div>
-    <p>
-      Every number Strecker publishes is traceable back to a specific
-      photograph. Detection is by MegaDetector&nbsp;v5; species
-      assignment by SpeciesNet&nbsp;v4.0.2, calibrated to an 8% review
-      threshold. Independent events are filtered to a 30-minute
-      window per camera per species. Density follows the Random
-      Encounter Model. Placement bias (feeder, trail, water
-      attractors) is corrected via inverse-propensity weighting on
-      literature-prior inflation factors.
-    </p>
-    <div class="j-footnote">
-      The record is meant to stand alongside a wildlife biologist's
-      field notes, not replace them. If the data disagrees with the
-      land, believe the land.
-      <cite>— notes on method</cite>
+      <div class="h-gallery">
+        <article class="h-card">
+          <div class="h-card-img" style="background-image:url('{{ url_for('static', filename='marketing/journal/plate-01-buck.jpg') }}');"></div>
+          <div class="h-card-body">
+            <div class="sci">Odocoileus virginianus</div>
+            <h3>Mature 10-point</h3>
+            <dl>
+              <dt>Station</dt><dd>Crooked Well · feeder</dd>
+              <dt>Date</dt><dd>31 Aug · 04:17</dd>
+              <dt>Visits</dt><dd>14 this season</dd>
+              <dt>Camera</dt><dd>Muddy MTC14</dd>
+            </dl>
+          </div>
+        </article>
+
+        <article class="h-card">
+          <div class="h-card-img" style="background-image:url('{{ url_for('static', filename='marketing/journal/plate-02-hog.jpg') }}');"></div>
+          <div class="h-card-body">
+            <div class="sci">Sus scrofa</div>
+            <h3>Boar, est. 280 lb</h3>
+            <dl>
+              <dt>Station</dt><dd>Goldilocks · trail</dd>
+              <dt>Date</dt><dd>24 Jun · 01:38</dd>
+              <dt>Visits</dt><dd>31 this season</dd>
+              <dt>Camera</dt><dd>Moultrie AC-40</dd>
+            </dl>
+          </div>
+        </article>
+
+        <article class="h-card">
+          <div class="h-card-img" style="background-image:url('{{ url_for('static', filename='marketing/journal/plate-03-bear.jpg') }}');"></div>
+          <div class="h-card-body">
+            <div class="sci">Ursus americanus</div>
+            <h3>Adult black bear</h3>
+            <dl>
+              <dt>Station</dt><dd>Crooked Well · ridge</dd>
+              <dt>Date</dt><dd>17 Oct · 22:51</dd>
+              <dt>Visits</dt><dd>3 this season</dd>
+              <dt>Camera</dt><dd>Stealth Cam QS</dd>
+            </dl>
+          </div>
+        </article>
+      </div>
+
+      <blockquote class="h-pullquote" style="color:#fff; border-left-color: var(--s-clay);">
+        &ldquo;I used to guess. Now I know which fence the hogs cross
+        and what hour the bucks move. That&rsquo;s the whole thing.&rdquo;
+        <cite>— landowner, 1,100 ac. · Llano County</cite>
+      </blockquote>
+    </div>
+  </section>
+
+  <!-- ─── Closing CTA ─── -->
+  <section class="h-cta">
+    <div class="h-cta-inner">
+      <div class="h-section-kicker" style="color: var(--s-kraft);">
+        Free while in beta
+      </div>
+      <h2>Start a logbook<br>for your place.</h2>
+      <p>
+        No subscription, no middleman, no data sharing. Your photos
+        stay yours. Log a property in about two minutes.
+      </p>
+      <div class="h-hero-cta">
+        <a href="/properties/new" class="s-btn s-btn--blaze">Register a property</a>
+        <a href="/properties" class="s-btn s-btn--ghost" style="color:#fff !important; border-color:rgba(255,255,255,0.7);">
+          Open the logbook
+        </a>
+      </div>
     </div>
   </section>
 

@@ -1,295 +1,104 @@
-/* strecker.css — "field journal" design system.
+/* strecker.css — outdoor-pro design system.
  *
- * This is a complete teardown and rebuild. Nothing was inherited
- * from any previous Strecker iteration or from Basal. No tactical
- * HUD, no tickers, no blaze orange, no IR green, no animations,
- * no corner brackets.
+ * Audience: hunters and landowners. Not naturalists, not analysts,
+ * not operators. People who are outside and who run cameras because
+ * they want to know what's walking their ground. The visual
+ * language borrows from outdoor sporting catalogs (Filson, Sitka,
+ * Field & Stream) — big photography, warm earth palette, condensed
+ * sporting display type, plainspoken copy.
  *
- * The metaphor is a naturalist's working notebook. Cream paper,
- * warm ink, a single literary serif, generous whitespace, quiet
- * type. Species names italicized like Linnaean binomials. Images
- * treated as archival plates — desaturated, vignetted — captioned
- * in small caps. Navigation set like a book's section headers.
- *
- * Audience: landowners and hunters who keep records and care
- * about the work. The visual language says "I maintain a careful
- * account of what lives on this land" — not "I watch security
- * cameras."
- *
- * Scoped to body.strecker so basal.eco stays untouched.
+ * Scoped to body.strecker. Nothing here leaks to basal.eco.
  */
 
-/* ────────────────────────────────────────────────────────────────
- * Tokens
- * ──────────────────────────────────────────────────────────────── */
-
 body.strecker {
-  /* Surfaces */
-  --j-paper:        #eae2cf;   /* base cream — page */
-  --j-paper-deep:   #e0d7c0;   /* card, inset panels */
-  --j-paper-bright: #f3ecdb;   /* hover, highlight */
-  --j-rule:         #c9c0a6;   /* faint contour lines */
-  --j-rule-ink:     #8c8573;   /* inked rules */
+  /* Surfaces — warm neutrals, no pure white */
+  --s-bone:    #f1ece3;   /* page base */
+  --s-cream:   #e6dfd1;   /* card, inset */
+  --s-kraft:   #c3ab7d;   /* tan accent */
+  --s-char:    #1c1b18;   /* near-black ink & dark surfaces */
+  --s-char-2:  #2a2823;   /* card on dark */
+  --s-rule:    #cdc4b0;   /* subdued hairline */
 
   /* Ink */
-  --j-ink:       #17130c;      /* primary text, warm near-black */
-  --j-ink-soft: #3f362a;      /* secondary */
-  --j-ink-mute: #7d7560;      /* tertiary / metadata */
+  --s-ink:      #1c1b18;
+  --s-ink-soft: #4a453c;
+  --s-ink-mute: #7a7364;
+  --s-ink-inv:  #f1ece3;  /* on dark */
 
-  /* Accents — muted, warm, used only as seasoning */
-  --j-loam:      #6e4b22;      /* walnut — section rules, pull quotes */
-  --j-pine:      #284531;      /* deep pine — CTAs, active state */
-  --j-pine-lift: #375d42;      /* hover */
-  --j-rust:      #8e3a1f;      /* iron oxide — sparingly, for emphasis */
+  /* Accents — earthy, restrained */
+  --s-moss:     #3a4a2d;  /* deep pine/olive — primary action */
+  --s-moss-up:  #4a5f3a;
+  --s-clay:     #9b4a24;  /* iron oxide — used as a single accent */
+  --s-brass:    #a07a2a;  /* warm metal — tertiary */
 
-  /* Type — one variable serif family for the whole document */
-  --j-serif:  "Source Serif 4", "Source Serif Pro", "Iowan Old Style",
-              "Palatino Linotype", Palatino, Georgia, serif;
-}
+  /* Type */
+  --s-disp: "Oswald", "Archivo Narrow", "Impact", "Helvetica Neue", sans-serif;
+  --s-sans: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --s-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-/* ────────────────────────────────────────────────────────────────
- * Base
- * ──────────────────────────────────────────────────────────────── */
-
-body.strecker {
-  background: var(--j-paper);
-  color: var(--j-ink);
-  font-family: var(--j-serif);
-  font-size: 17px;
-  line-height: 1.55;
-  font-feature-settings: "kern", "liga", "onum", "pnum";
-  min-height: 100vh;
-}
-
-body.strecker * {
+  background: var(--s-bone);
+  color: var(--s-ink);
+  font-family: var(--s-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Paper texture — very subtle mottle via layered radial gradients.
-   Reads as old paper, not as a digital backdrop. */
-body.strecker {
-  background-image:
-    radial-gradient(ellipse 900px 600px at 18% 12%,
-      rgba(255,250,230,0.35), transparent 70%),
-    radial-gradient(ellipse 700px 500px at 82% 88%,
-      rgba(150,120,80,0.08), transparent 70%),
-    radial-gradient(ellipse 500px 300px at 60% 45%,
-      rgba(120,90,50,0.05), transparent 70%);
-}
-
-/* ────────────────────────────────────────────────────────────────
- * Nav — quiet masthead, like the top of a book section
- * ──────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+ * Tailwind-class overrides — make the shared chrome (header/
+ * footer in base.html) match the Strecker look without touching
+ * Basal's copy.
+ * ────────────────────────────────────────────────────────────── */
 
 body.strecker header {
-  background: transparent;
-  border-bottom: 1px solid var(--j-rule);
-  position: relative;
-  padding: 18px 0 14px;
-  box-shadow: none;
+  background: var(--s-char) !important;
+  border-bottom: 1px solid #000 !important;
 }
-body.strecker header::after {
-  /* Thin secondary rule under the main, in the old textbook manner */
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: 3px;
-  border-bottom: 1px solid var(--j-rule);
-  opacity: 0.6;
-}
-
-body.strecker header > div {
-  padding-left: 32px !important;
-  padding-right: 32px !important;
-  max-width: 1080px !important;
-}
-
-body.strecker header a[href="/"] {
-  font-family: var(--j-serif);
-  font-weight: 400;
-  font-size: 22px;
-  font-style: italic;
-  letter-spacing: 0.01em;
-  color: var(--j-ink);
-  text-transform: none;
-  display: inline-flex; align-items: baseline; gap: 8px;
-}
-body.strecker header a[href="/"]::before { display: none; }
-body.strecker header a[href="/"]::after {
-  content: "—";
-  color: var(--j-ink-mute);
-  font-style: normal;
-  margin-left: 4px;
-}
-
+body.strecker header a,
+body.strecker header button,
 body.strecker header nav a {
-  font-family: var(--j-serif);
-  font-variant-caps: all-small-caps;
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  color: var(--j-ink-soft);
-  text-decoration: none;
-  transition: color 0.15s;
-  padding: 4px 0;
-}
-body.strecker header nav a:hover { color: var(--j-pine); }
-
-body.strecker #dark-toggle,
-body.strecker button[onclick*="toggleDarkMode"],
-body.strecker button[onclick*="toggleMobileMenu"] {
-  display: none !important;
-}
-
-/* ────────────────────────────────────────────────────────────────
- * Typography hierarchy
- * ──────────────────────────────────────────────────────────────── */
-
-body.strecker h1, body.strecker h2, body.strecker h3, body.strecker h4 {
-  font-family: var(--j-serif);
-  color: var(--j-ink);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-body.strecker h1 {
-  font-size: 56px;
-  line-height: 1.04;
-  font-weight: 400;
-  font-style: italic;
-  letter-spacing: -0.015em;
-  margin: 0 0 8px;
-}
-body.strecker h2 {
-  font-size: 26px;
-  line-height: 1.2;
-  font-weight: 400;
-  font-style: italic;
-  margin: 48px 0 12px;
-  color: var(--j-ink);
-}
-body.strecker h3 {
-  font-size: 18px;
-  font-weight: 600;
-  font-style: normal;
-  letter-spacing: 0.01em;
-  margin: 28px 0 6px;
-}
-
-body.strecker p { font-size: 17px; line-height: 1.6; color: var(--j-ink-soft); }
-
-body.strecker a {
-  color: var(--j-pine);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  text-decoration-color: rgba(40,69,49,0.45);
-}
-body.strecker a:hover { color: var(--j-pine-lift); text-decoration-color: var(--j-pine-lift); }
-
-/* Drop caps on first paragraph after an h1 — literary opener */
-body.strecker h1 + p::first-letter {
-  font-size: 3.4em;
-  line-height: 0.9;
-  float: left;
-  margin: 0.02em 0.08em 0 -0.04em;
-  font-weight: 600;
-  color: var(--j-loam);
-}
-
-/* Small-caps metadata — used for datelines, camera IDs, species */
-body.strecker .j-meta {
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.14em;
-  font-size: 13px;
-  color: var(--j-ink-mute);
-  font-style: normal;
-}
-
-body.strecker .j-species {
-  font-style: italic;
+  color: var(--s-ink-inv) !important;
+  font-family: var(--s-disp);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-weight: 500;
 }
-
-body.strecker .j-dateline {
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.2em;
-  font-size: 13px;
-  color: var(--j-loam);
-  border-bottom: 1px solid var(--j-rule-ink);
-  padding-bottom: 6px;
-  margin-bottom: 14px;
-}
-
-/* ────────────────────────────────────────────────────────────────
- * Restyle Tailwind classes templates already use
- * ──────────────────────────────────────────────────────────────── */
-
-body.strecker .bg-white,
-body.strecker .dark .bg-gray-800,
-body.strecker .bg-gray-800,
-body.strecker .bg-gray-50,
-body.strecker .dark .bg-gray-900 {
-  background: var(--j-paper-deep) !important;
-}
-
-body.strecker .border-gray-200,
-body.strecker .dark .border-gray-700,
-body.strecker .border-gray-700,
-body.strecker .border-gray-100,
-body.strecker .dark .border-gray-800 {
-  border-color: var(--j-rule) !important;
-}
-
-body.strecker .rounded-lg,
-body.strecker .rounded-xl,
-body.strecker .rounded-2xl { border-radius: 0 !important; }
-
-body.strecker .shadow,
-body.strecker .shadow-sm,
-body.strecker .shadow-md,
-body.strecker .shadow-lg,
-body.strecker .hover\:shadow-md:hover,
-body.strecker .hover\:shadow-lg:hover { box-shadow: none !important; }
-
-body.strecker .text-slate-700,
-body.strecker .dark .text-gray-100,
-body.strecker .text-gray-100 { color: var(--j-ink); }
-
-body.strecker .text-slate-500,
-body.strecker .dark .text-gray-400,
-body.strecker .text-gray-400 { color: var(--j-ink-mute); }
-
-body.strecker .text-teal-600,
-body.strecker .text-teal-400 { color: var(--j-pine); }
-
-/* CTAs → pine ink with a thin rule instead of a pill */
-body.strecker .bg-teal-600,
-body.strecker .hover\:bg-teal-700:hover {
-  background: var(--j-pine) !important;
-  color: var(--j-paper) !important;
-}
-body.strecker .bg-teal-600 {
-  border-radius: 0 !important;
-  font-family: var(--j-serif);
-  font-variant-caps: all-small-caps;
+body.strecker header nav a:hover { color: var(--s-kraft) !important; }
+body.strecker header a.text-xl {
+  font-family: var(--s-disp);
+  font-weight: 700;
   letter-spacing: 0.14em;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 10px 20px !important;
-  border: 1px solid var(--j-pine);
-  transition: background 0.15s;
-}
-body.strecker .bg-teal-600:hover { background: var(--j-pine-lift) !important; }
-
-/* Secondary outline buttons */
-body.strecker .border-teal-600 {
-  border-color: var(--j-loam) !important;
-  color: var(--j-loam) !important;
+  font-size: 22px;
+  color: var(--s-ink-inv) !important;
 }
 
-/* ────────────────────────────────────────────────────────────────
- * Form inputs — sober, inked-underline style
- * ──────────────────────────────────────────────────────────────── */
+body.strecker footer {
+  background: var(--s-char);
+  color: var(--s-kraft);
+  border-top: none !important;
+}
+body.strecker footer * {
+  color: var(--s-kraft) !important;
+  font-family: var(--s-disp);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 11px !important;
+}
 
+/* Home hero needs to escape main's Tailwind padding/max-width
+   without affecting other pages. The home template applies the
+   .h-fullbleed class to its root div. */
+body.strecker .h-fullbleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  margin-top: -32px;   /* cancel main's py-8 top */
+  margin-bottom: -32px;
+}
+
+/* Form inputs — underline-style, no boxed fields */
 body.strecker input[type="text"],
 body.strecker input[type="email"],
 body.strecker input[type="password"],
@@ -300,96 +109,71 @@ body.strecker input[type="tel"],
 body.strecker input[type="date"],
 body.strecker textarea,
 body.strecker select {
-  background: var(--j-paper-bright) !important;
-  color: var(--j-ink) !important;
-  border: none !important;
-  border-bottom: 1px solid var(--j-rule-ink) !important;
-  border-radius: 0 !important;
-  font-family: var(--j-serif) !important;
-  font-size: 16px !important;
-  padding: 6px 2px !important;
+  background: var(--s-cream) !important;
+  border: 1px solid var(--s-rule) !important;
+  color: var(--s-ink) !important;
+  border-radius: 2px;
+  font-family: var(--s-sans);
+  padding: 10px 12px;
 }
 body.strecker input:focus,
 body.strecker textarea:focus,
 body.strecker select:focus {
-  outline: none !important;
-  border-bottom-color: var(--j-pine) !important;
-  box-shadow: none !important;
-  background: var(--j-paper-bright) !important;
-}
-body.strecker input::placeholder,
-body.strecker textarea::placeholder {
-  color: var(--j-ink-mute) !important;
-  font-style: italic;
+  outline: none;
+  border-color: var(--s-moss) !important;
+  box-shadow: 0 0 0 2px rgba(58,74,45,0.15);
 }
 
-/* ────────────────────────────────────────────────────────────────
- * Archival plate — how photos render in this design
- * ──────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+ * Shared building blocks usable by non-home pages
+ * ────────────────────────────────────────────────────────────── */
 
-body.strecker .j-plate {
-  position: relative;
-  background: var(--j-ink);
-  padding: 0;
-}
-body.strecker .j-plate img {
-  display: block;
-  width: 100%;
-  height: auto;
-  filter: sepia(0.18) saturate(0.75) contrast(1.02);
-}
-body.strecker .j-plate-caption {
-  margin-top: 10px;
-  padding-left: 2px;
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.14em;
-  font-size: 12px;
-  color: var(--j-ink-mute);
-  border-left: 2px solid var(--j-loam);
-  padding-left: 10px;
+body.strecker h1, body.strecker h2, body.strecker h3 {
+  font-family: var(--s-disp);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--s-ink);
 }
 
-/* ────────────────────────────────────────────────────────────────
- * Rule marks — ornamental horizontal rules
- * ──────────────────────────────────────────────────────────────── */
+body.strecker a { color: var(--s-moss); text-decoration: underline; text-underline-offset: 3px; }
+body.strecker a:hover { color: var(--s-clay); }
 
-body.strecker hr,
-body.strecker .j-rule {
-  border: none;
-  border-top: 1px solid var(--j-rule-ink);
-  margin: 36px 0;
-  position: relative;
-  height: 1px;
-}
-body.strecker .j-rule-fleur {
-  text-align: center;
-  color: var(--j-loam);
+body.strecker .s-btn {
+  display: inline-block;
+  font-family: var(--s-disp);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
   font-size: 14px;
-  letter-spacing: 1em;
-  margin: 40px 0;
+  padding: 14px 26px;
+  background: var(--s-moss);
+  color: var(--s-ink-inv) !important;
+  border: 1px solid var(--s-moss);
+  text-decoration: none;
+  transition: background 0.15s;
 }
+body.strecker .s-btn:hover { background: var(--s-moss-up); color: var(--s-ink-inv) !important; }
 
-/* ────────────────────────────────────────────────────────────────
- * Footer
- * ──────────────────────────────────────────────────────────────── */
-
-body.strecker footer {
+body.strecker .s-btn--ghost {
   background: transparent;
-  border-top: 1px solid var(--j-rule);
-  margin-top: 80px;
-  padding: 28px 0;
-  color: var(--j-ink-mute);
-  font-style: italic;
-  font-size: 14px;
-  text-align: center;
+  color: var(--s-ink) !important;
+  border-color: var(--s-ink);
 }
+body.strecker .s-btn--ghost:hover { background: var(--s-ink); color: var(--s-ink-inv) !important; }
 
-/* ────────────────────────────────────────────────────────────────
- * Responsive trim
- * ──────────────────────────────────────────────────────────────── */
+body.strecker .s-btn--blaze {
+  background: var(--s-clay);
+  border-color: var(--s-clay);
+}
+body.strecker .s-btn--blaze:hover { background: #b3572d; border-color: #b3572d; }
 
-@media (max-width: 720px) {
-  body.strecker { font-size: 16px; }
-  body.strecker h1 { font-size: 38px; }
-  body.strecker h2 { font-size: 22px; }
+/* Section rules */
+body.strecker .s-kicker {
+  font-family: var(--s-disp);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 12px;
+  color: var(--s-clay);
 }
