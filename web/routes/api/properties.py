@@ -7,7 +7,11 @@ Ownership is verified on every request (property.user_id == current_user.id).
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
-from db.models import db, Property, Camera, Upload, ProcessingJob
+from db.models import (
+    db, Property, Camera, Upload, ProcessingJob,
+    Season, DetectionSummary, CoverageScore,
+    ShareCard, DeerIndividual, Photo,
+)
 
 properties_api_bp = Blueprint("properties_api", __name__, url_prefix="/api")
 
@@ -165,20 +169,50 @@ def delete_property(property_id):
     if not prop:
         return jsonify({"error": "Property not found"}), 404
 
-    # Cascade: the data graph under a property is
-    # ProcessingJob → Upload → Camera → Property. SQLAlchemy doesn't
-    # cascade automatically across these (the foreign keys are RESTRICT
-    # by default), so delete children in dependency order.
-    upload_ids = [u.id for u in Upload.query.filter_by(property_id=prop.id).all()]
+    # Cascade everything hanging off the property. The FK graph is:
+    #   Photo → (property, camera, season)
+    #   DetectionSummary → (camera, season)
+    #   CoverageScore → (property, season)
+    #   ShareCard → (property, season)
+    #   DeerIndividual → property
+    #   ProcessingJob → (property, upload)
+    #   Upload → property
+    #   Camera → property
+    #   Season → property
+    # Delete leaves before trunks. synchronize_session=False is safe
+    # here because we commit at the end — no session-cached objects
+    # need invalidating.
+    pid = prop.id
+    camera_ids = [c.id for c in Camera.query.filter_by(property_id=pid).all()]
+    season_ids = [s.id for s in Season.query.filter_by(property_id=pid).all()]
+
+    Photo.query.filter_by(property_id=pid).delete(synchronize_session=False)
+    if camera_ids:
+        DetectionSummary.query.filter(
+            DetectionSummary.camera_id.in_(camera_ids)
+        ).delete(synchronize_session=False)
+    if season_ids:
+        # Catch any DetectionSummary rows not covered by camera_ids
+        # (shouldn't exist, but cheap safety).
+        DetectionSummary.query.filter(
+            DetectionSummary.season_id.in_(season_ids)
+        ).delete(synchronize_session=False)
+    CoverageScore.query.filter_by(property_id=pid).delete(synchronize_session=False)
+    ShareCard.query.filter_by(property_id=pid).delete(synchronize_session=False)
+    DeerIndividual.query.filter_by(property_id=pid).delete(synchronize_session=False)
+
+    upload_ids = [u.id for u in Upload.query.filter_by(property_id=pid).all()]
     if upload_ids:
         ProcessingJob.query.filter(
             ProcessingJob.upload_id.in_(upload_ids)
         ).delete(synchronize_session=False)
-    ProcessingJob.query.filter_by(property_id=prop.id).delete(
+    ProcessingJob.query.filter_by(property_id=pid).delete(
         synchronize_session=False
     )
-    Upload.query.filter_by(property_id=prop.id).delete(synchronize_session=False)
-    Camera.query.filter_by(property_id=prop.id).delete(synchronize_session=False)
+    Upload.query.filter_by(property_id=pid).delete(synchronize_session=False)
+    Camera.query.filter_by(property_id=pid).delete(synchronize_session=False)
+    Season.query.filter_by(property_id=pid).delete(synchronize_session=False)
+
     db.session.delete(prop)
     db.session.commit()
 
