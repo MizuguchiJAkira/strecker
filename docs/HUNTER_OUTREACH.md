@@ -23,7 +23,7 @@ Subject: **Free tool that sorts your trail-cam photos by species**
 > building a thing for hunters that's now running and I'd love to put
 > it in front of one or two people who keep real cards.
 >
-> It's called **Strecker** (strecker.basal.eco). Here's what it does:
+> It's called **Strecker** (strecker.app). Here's what it does:
 > pull your SD card, drop the photos in, and it sorts every frame by
 > species, camera station, and hour. A ten-point at Crooked Well on
 > October 17 at 4 AM becomes one row; 40 burst frames of the same doe
@@ -35,7 +35,7 @@ Subject: **Free tool that sorts your trail-cam photos by species**
 > on a server and you get back a dashboard.
 >
 > If you want to be one of the first to try it, just register at
-> **https://strecker.basal.eco** and drop a card in. It'll take 15-30
+> **https://strecker.app** and drop a card in. It'll take 15-30
 > minutes to process the first time while the classifier warms up.
 >
 > Happy to jump on a call for 15 min if you want me to walk you through
@@ -56,7 +56,7 @@ Subject: **The trail-cam thing is live — want to try it?**
 > a full season's SD card: upload a zip, and it sorts every frame by
 > species, station, and time.
 >
-> Live at **https://strecker.basal.eco**. Free while in beta.
+> Live at **https://strecker.app**. Free while in beta.
 >
 > I'd really value you being one of the first to run a real card
 > through. I've got about 300 photos of mine own tested so far and I
@@ -75,7 +75,7 @@ Subject: **The trail-cam thing is live — want to try it?**
 
 > Built a trail-cam classifier for hunters. Upload your SD card,
 > get back every animal by species + camera + hour.
-> Free beta. strecker.basal.eco
+> Free beta. strecker.app
 > DM me if you want in — looking for the first 10.
 
 ---
@@ -109,7 +109,7 @@ Each first-card upload is also a quality-assurance signal. Track:
 - **Upload failures.** The three most likely: ZIP over 2 GB (should
   400 at request), session expiry mid-upload (presigned URL expires
   in 30 min), Spaces CORS on a new host (shouldn't happen now that
-  we've wildcarded strecker.basal.eco).
+  we've wildcarded strecker.app).
 
 ## Follow-up rhythm
 
