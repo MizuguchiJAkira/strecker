@@ -114,9 +114,21 @@
     {% if request.args.get('embed') != '1' %}
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 relative z-50">
         <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold text-teal-600 tracking-tight flex items-center">
+            <a href="/" class="text-xl font-bold tracking-tight flex items-center"
+               style="{% if is_basal_site %}color: #3d5945; text-decoration: none;{% else %}color: #0d9488;{% endif %}">
                 {% if is_basal_site %}
-                {{ brand_name }}
+                {# Basal wordmark — matches basal.eco nav: SVG mark + serif
+                   "basal / informatics" with italic forest slash. #}
+                <span style="display: inline-flex; align-items: center; gap: 12px;
+                             font-family: 'Fraunces', 'Tiempos Headline', Georgia, serif;
+                             font-weight: 500; letter-spacing: -0.01em; color: #3d5945;">
+                    <span style="width: 28px; height: 28px; color: #3d5945; display: block;">
+                        {% include 'basal/_mark.svg' ignore missing %}
+                    </span>
+                    <span>
+                        basal<em style="font-style: italic; color: #5d7e63; font-weight: 400;"> /</em><span style="color: #3d5945; font-weight: 400;"> informatics</span>
+                    </span>
+                </span>
                 {% else %}
                 <img src="{{ url_for('static', filename='marketing/strecker-logo-trans.png') }}"
                      alt="Strecker"
